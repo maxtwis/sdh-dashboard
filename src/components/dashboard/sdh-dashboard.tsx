@@ -46,11 +46,11 @@ interface TimeSeriesDataPoint {
 interface IndicatorDetails {
   methodology: string;
   dataSources: string[];
+  targetMethod: string;
   relevantPolicies: Array<{
     title: string;
     description: string;
   }>;
-  targetMethod: string;
 }
 
 interface Indicator {
@@ -64,12 +64,12 @@ interface Indicator {
   target: number;
   baseline: number;
   current: number;
+  currentYear: number;
   warning?: string;
   status: 'Target Achieved' | 'Improving' | 'Getting Worse' | 'Little or No Change' | 'No Data';
-  currentYear: number;
   timeSeriesData: TimeSeriesDataPoint[];
-  details: IndicatorDetails;
   disaggregationTypes: string[];
+  details: IndicatorDetails;
 }
 
 interface EditIndicatorFormProps {
@@ -103,6 +103,20 @@ interface ProgressSegmentProps {
   progress: number;
   status: Indicator['status'];
   indicatorType: 'direct' | 'reverse';
+}
+
+interface DatabaseIndicator {
+  id: string;
+  description?: string;
+  details?: {
+    methodology?: string;
+    dataSources?: string[];
+    targetMethod?: string;
+    relevantPolicies?: Array<{
+      title: string;
+      description: string;
+    }>;
+  };
 }
 
 const ProgressSegment: React.FC<ProgressSegmentProps> = ({ progress, status, indicatorType }) => {
@@ -143,6 +157,61 @@ const ProgressSegment: React.FC<ProgressSegmentProps> = ({ progress, status, ind
       />
     </div>
   );
+};
+
+const mergeIndicatorData = async (
+  newIndicators: Indicator[],
+  supabase: any
+): Promise<Indicator[]> => {
+  // Fetch existing indicators from database
+  const { data: existingData, error } = await supabase
+    .from('indicators')
+    .select('*');
+
+  if (error) {
+    console.error('Error fetching existing indicators:', error);
+    throw error;
+  }
+
+  // Convert existing data to a map for easy lookup
+  const existingIndicators = new Map<string, DatabaseIndicator>(
+    existingData.map((indicator: DatabaseIndicator) => [indicator.id, indicator])
+  );
+
+  // Merge new data with existing data
+  return newIndicators.map(newIndicator => {
+    const existingIndicator = existingIndicators.get(newIndicator.id);
+    
+    if (!existingIndicator) {
+      // Ensure new indicator has all required fields
+      return {
+        ...newIndicator,
+        description: newIndicator.description || '',
+        details: {
+          methodology: newIndicator.details.methodology || '',
+          dataSources: newIndicator.details.dataSources || [],
+          targetMethod: newIndicator.details.targetMethod || '',
+          relevantPolicies: newIndicator.details.relevantPolicies || []
+        }
+      };
+    }
+
+    // Merge with existing data
+    return {
+      ...newIndicator,
+      description: newIndicator.description || existingIndicator.description || '',
+      details: {
+        methodology: newIndicator.details.methodology || 
+                    existingIndicator.details?.methodology || '',
+        dataSources: newIndicator.details.dataSources.length > 0 
+          ? newIndicator.details.dataSources 
+          : existingIndicator.details?.dataSources || [],
+        targetMethod: newIndicator.details.targetMethod || 
+                     existingIndicator.details?.targetMethod || '',
+        relevantPolicies: existingIndicator.details?.relevantPolicies || []
+      }
+    };
+  });
 };
 
 // Unit System
@@ -211,8 +280,6 @@ class UnitSystem {
     }
   }
 }
-
-
 
 // Helper Functions
 const formatValue = (value: number | null | undefined, unit: string): string => {
@@ -1180,9 +1247,6 @@ export default function SDHDashboard() {
         const lines = csv.split('\n');
         const headers = lines[0].split(',').map(h => h.trim());
         
-        // Log headers to verify what we're getting from CSV
-        console.log('CSV Headers:', headers);
-        
         const data = lines.slice(1)
           .filter(line => line.trim())
           .map(line => {
@@ -1193,16 +1257,14 @@ export default function SDHDashboard() {
             }, {} as Record<string, string>);
           });
   
-        // Log first row of data to verify structure
-        console.log('First row of CSV data:', data[0]);
-  
-        const finalIndicators = processCSVData(data);
-  
-        // Log processed data to verify structure
-        console.log('First processed indicator:', finalIndicators[0]);
+        // Process CSV data into indicators
+        const newIndicators = processCSVData(data);
+        
+        // Merge with existing data
+        const mergedIndicators = await mergeIndicatorData(newIndicators, supabase);
   
         // Format data for Supabase
-        const supabaseData = finalIndicators.map(indicator => ({
+        const supabaseData = mergedIndicators.map(indicator => ({
           id: indicator.id,
           domain: indicator.domain,
           subdomain: indicator.subdomain,
@@ -1218,12 +1280,7 @@ export default function SDHDashboard() {
           status: indicator.status,
           time_series_data: indicator.timeSeriesData,
           disaggregation_types: indicator.disaggregationTypes,
-          details: {
-            methodology: indicator.details.methodology,
-            dataSources: indicator.details.dataSources,
-            targetMethod: indicator.details.targetMethod,
-            relevantPolicies: indicator.details.relevantPolicies
-          }
+          details: indicator.details
         }));
   
         // Insert data in smaller batches
@@ -1240,9 +1297,9 @@ export default function SDHDashboard() {
           }
         }
   
-        setIndicators(finalIndicators);
-        if (finalIndicators.length > 0) {
-          setSelectedDomain(finalIndicators[0].domain);
+        setIndicators(mergedIndicators);
+        if (mergedIndicators.length > 0) {
+          setSelectedDomain(mergedIndicators[0].domain);
         }
       } catch (error) {
         console.error('Error processing file:', error);
