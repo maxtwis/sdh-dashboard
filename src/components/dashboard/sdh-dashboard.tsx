@@ -695,7 +695,7 @@ const IndicatorOverview: React.FC<IndicatorOverviewProps> = ({ indicator }) => {
             <div className="text-sm text-gray-600">Most Recent Data</div>
           </div>
           <div className="flex items-baseline gap-1">
-            <div className="text-2xl font-semibold text-purple-600">
+            <div className="text-2xl font-semibold text-gray-900">
               {formatValue(indicator.current, indicator.unit)}
             </div>
             <div className="text-sm text-gray-500">{indicator.unit}</div>
@@ -711,7 +711,7 @@ const IndicatorOverview: React.FC<IndicatorOverviewProps> = ({ indicator }) => {
             <div className="text-sm text-gray-600">Target</div>
           </div>
           <div className="flex items-baseline gap-1">
-            <div className="text-2xl font-semibold text-green-600">
+            <div className="text-2xl font-semibold text-gray-900">
               {formatValue(indicator.target, indicator.unit)}
             </div>
             <div className="text-sm text-gray-500">{indicator.unit}</div>
@@ -726,7 +726,7 @@ const IndicatorOverview: React.FC<IndicatorOverviewProps> = ({ indicator }) => {
             <div className="text-sm text-gray-600">Baseline</div>
           </div>
           <div className="flex items-baseline gap-1">
-            <div className="text-2xl font-semibold text-blue-600">
+            <div className="text-2xl font-semibold text-gray-900">
               {formatValue(indicator.baseline, indicator.unit)}
             </div>
             <div className="text-sm text-gray-500">{indicator.unit}</div>
