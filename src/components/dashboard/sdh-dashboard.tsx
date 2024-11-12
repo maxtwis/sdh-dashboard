@@ -689,13 +689,13 @@ const IndicatorOverview: React.FC<IndicatorOverviewProps> = ({ indicator }) => {
       <div className="grid grid-cols-3 gap-8">
         <div>
           <div className="flex items-center gap-2 mb-2">
-            <div className="p-2 bg-blue-50 rounded-full">
-              <Activity className="w-5 h-5 text-blue-600" />
+            <div className="p-2 bg-purple-50 rounded-full">
+              <Activity className="w-5 h-5 text-purple-600" />
             </div>
             <div className="text-sm text-gray-600">Most Recent Data</div>
           </div>
           <div className="flex items-baseline gap-1">
-            <div className="text-2xl font-semibold">
+            <div className="text-2xl font-semibold text-purple-600">
               {formatValue(indicator.current, indicator.unit)}
             </div>
             <div className="text-sm text-gray-500">{indicator.unit}</div>
@@ -705,13 +705,13 @@ const IndicatorOverview: React.FC<IndicatorOverviewProps> = ({ indicator }) => {
 
         <div>
           <div className="flex items-center gap-2 mb-2">
-            <div className="p-2 bg-gray-100 rounded-full">
-              <Target className="w-5 h-5 text-gray-600" />
+            <div className="p-2 bg-green-50 rounded-full">
+              <Target className="w-5 h-5 text-green-600" />
             </div>
             <div className="text-sm text-gray-600">Target</div>
           </div>
           <div className="flex items-baseline gap-1">
-            <div className="text-2xl font-semibold">
+            <div className="text-2xl font-semibold text-green-600">
               {formatValue(indicator.target, indicator.unit)}
             </div>
             <div className="text-sm text-gray-500">{indicator.unit}</div>
@@ -720,13 +720,13 @@ const IndicatorOverview: React.FC<IndicatorOverviewProps> = ({ indicator }) => {
 
         <div>
           <div className="flex items-center gap-2 mb-2">
-            <div className="p-2 bg-gray-100 rounded-full">
-              <TrendingUp className="w-5 h-5 text-gray-600" />
+            <div className="p-2 bg-blue-50 rounded-full">
+              <TrendingUp className="w-5 h-5 text-blue-600" />
             </div>
             <div className="text-sm text-gray-600">Baseline</div>
           </div>
           <div className="flex items-baseline gap-1">
-            <div className="text-2xl font-semibold">
+            <div className="text-2xl font-semibold text-blue-600">
               {formatValue(indicator.baseline, indicator.unit)}
             </div>
             <div className="text-sm text-gray-500">{indicator.unit}</div>
