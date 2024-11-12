@@ -1,0 +1,26 @@
+Indicator ID,Domain,Subdomain,Indicator Title,Description,Unit,IndicatorType,Target,Baseline,Current,Year,Total,Disaggregation Category,Disaggregation Value,Percentage,Methodology,DataSources,TargetMethod
+AIR-01,Environmental Health,Air Quality,Air Quality Index,Annual average PM2.5 concentration in urban areas,?g/m?,reverse,10,35,22,2023,10,region,north,25,WHO Air Quality Guidelines measurement methodology,National Air Quality Database;EPA Monitoring Stations,WHO target for PM2.5 by 2025
+AIR-01,Environmental Health,Air Quality,Air Quality Index,Annual average PM2.5 concentration in urban areas,?g/m?,reverse,10,35,22,2023,22,region,south,20,,,
+AIR-01,Environmental Health,Air Quality,Air Quality Index,Annual average PM2.5 concentration in urban areas,?g/m?,reverse,10,35,22,2022,25,region,north,28,,,
+AIR-01,Environmental Health,Air Quality,Air Quality Index,Annual average PM2.5 concentration in urban areas,?g/m?,reverse,10,35,22,2022,25,region,south,23,,,
+HEALTH-01,Healthcare,Access,Physician Density,Number of physicians per 1000 population,per 1000,direct,3.5,2.1,2.8,2023,2.8,location_type,urban,3.2,WHO health workforce statistics methodology,National Health Workforce Registry,National healthcare workforce plan target
+HEALTH-01,Healthcare,Access,Physician Density,Number of physicians per 1000 population,per 1000,direct,3.5,2.1,2.8,2023,2.8,location_type,rural,2.1,,,
+HEALTH-01,Healthcare,Access,Physician Density,Number of physicians per 1000 population,per 1000,direct,3.5,2.1,2.8,2022,2.6,location_type,urban,3,,,
+HEALTH-01,Healthcare,Access,Physician Density,Number of physicians per 1000 population,per 1000,direct,3.5,2.1,2.8,2022,2.6,location_type,rural,1.9,,,
+EDU-01,Education,Access,School Completion Rate,Secondary school completion rate,%,direct,95,88,91.5,2023,91.5,sex,male,90,Education statistics standard methodology,National Education Database,National education policy target 2025
+EDU-01,Education,Access,School Completion Rate,Secondary school completion rate,%,direct,95,88,91.5,2023,91.5,sex,female,93,,,
+EDU-01,Education,Access,School Completion Rate,Secondary school completion rate,%,direct,95,88,91.5,2023,91.5,income_quintile,lowest,85,,,
+EDU-01,Education,Access,School Completion Rate,Secondary school completion rate,%,direct,95,88,91.5,2023,91.5,income_quintile,highest,98,,,
+WAIT-01,Healthcare,Efficiency,Emergency Wait Time,Average emergency department wait time,minutes,reverse,30,120,85,2023,85,urgency,high,45,Healthcare quality metrics methodology,Hospital Management System,National emergency care standards
+WAIT-01,Healthcare,Efficiency,Emergency Wait Time,Average emergency department wait time,minutes,reverse,30,120,85,2023,85,urgency,medium,90,,,
+WAIT-01,Healthcare,Efficiency,Emergency Wait Time,Average emergency department wait time,minutes,reverse,30,120,85,2023,85,urgency,low,120,,,
+ECON-01,Economic Security,Income,Median Household Income,Annual median household income adjusted for inflation,USD,direct,75000,50000,62000,2023,62000,region,urban,68000,Standard income survey methodology,National Household Survey,National poverty reduction target
+ECON-01,Economic Security,Income,Median Household Income,Annual median household income adjusted for inflation,USD,direct,75000,50000,62000,2023,62000,region,rural,54000,,,
+MORT-01,Health,Quality,Infant Mortality Rate,Deaths per 1000 live births,per 1000 population,reverse,3,6.5,4.8,2023,4.8,region,urban,4.2,WHO mortality statistics methodology,National Birth Registry;Death Registry,WHO SDG targets
+MORT-01,Health,Quality,Infant Mortality Rate,Deaths per 1000 live births,per 1000,reverse,3,6.5,4.8,2023,4.8,region,rural,5.4,,,
+EMIS-01,Environmental Health,Climate,Carbon Emissions,Annual CO2 emissions per capita,tons,reverse,2,8.5,6.2,2023,6.2,sector,residential,2.1,Environmental monitoring methodology,Environmental Protection Agency,Paris Agreement targets
+EMIS-01,Environmental Health,Climate,Carbon Emissions,Annual CO2 emissions per capita,tons,reverse,2,8.5,6.2,2023,6.2,sector,industrial,3.4,,,
+EMIS-01,Environmental Health,Climate,Carbon Emissions,Annual CO2 emissions per capita,tons,reverse,2,8.5,6.2,2023,6.2,sector,transport,0.7,,,
+VAC-01,Health,Prevention,Vaccination Coverage,Childhood vaccination coverage rate,%,direct,95,82,88.5,2023,88.5,vaccine_type,MMR,91,,,
+VAC-01,Health,Prevention,Vaccination Coverage,Childhood vaccination coverage rate,%,direct,95,82,88.5,2023,88.5,vaccine_type,DPT,89,,,
+VAC-01,Health,Prevention,Vaccination Coverage,Childhood vaccination coverage rate,%,direct,95,82,88.5,2023,88.5,vaccine_type,Polio,87.5,,,
