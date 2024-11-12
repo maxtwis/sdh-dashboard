@@ -700,9 +700,11 @@ const IndicatorOverview: React.FC<IndicatorOverviewProps> = ({ indicator }) => {
             </div>
             <div className="text-sm text-gray-500">{indicator.unit}</div>
           </div>
-          <div className="text-sm text-gray-500">({indicator.currentYear})</div>
+          <div className="text-sm text-gray-500">
+            ({indicator.currentYear || 'N/A'})
+          </div>
         </div>
-
+        
         <div>
           <div className="flex items-center gap-2 mb-2">
             <div className="p-2 bg-green-50 rounded-full">
@@ -834,9 +836,9 @@ const IndicatorCard: React.FC<IndicatorCardProps> = ({ indicator, onClick }) => 
               <span className="text-sm text-gray-500">{indicator.unit}</span>
             </div>
           </div>
-          <div>
+            <div>
             <div className="flex items-center gap-2 text-gray-600">
-              <span className="text-sm">Current ({indicator.currentYear})</span>
+              <span className="text-sm">Current ({indicator.currentYear || 'N/A'})</span>
             </div>
             <div className="flex items-baseline gap-1">
               <span className="text-lg font-semibold">
@@ -1202,6 +1204,7 @@ export default function SDHDashboard() {
   useEffect(() => {
     const loadIndicators = async () => {
       try {
+        setIsLoading(true);
         const { data, error } = await supabase
           .from('indicators')
           .select('*');
@@ -1211,8 +1214,27 @@ export default function SDHDashboard() {
         if (data && data.length > 0) {
           const processedData = data.map(row => ({
             ...row,
+            id: row.id,
+            domain: row.domain,
+            subdomain: row.subdomain,
+            title: row.title,
+            description: row.description || '',
+            unit: row.unit,
+            indicatorType: row.indicator_type,
+            target: row.target,
+            baseline: row.baseline,
+            current: row.current,
+            currentYear: row.current_year, // Ensure this is properly mapped
+            warning: row.warning || '',
+            status: row.status,
             timeSeriesData: row.time_series_data || [],
             disaggregationTypes: row.disaggregation_types || [],
+            details: {
+              methodology: row?.details?.methodology || '',
+              dataSources: row?.details?.dataSources || [],
+              targetMethod: row?.details?.targetMethod || '',
+              relevantPolicies: row?.details?.relevantPolicies || []
+            }
           }));
           setIndicators(processedData);
           setSelectedDomain(processedData[0].domain);
