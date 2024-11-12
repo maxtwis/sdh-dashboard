@@ -6,7 +6,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { 
   ArrowLeft, Download, LineChart, Table, ChevronRight, PlusCircle,
-  Edit2, Save
+  Edit2, Save, Target, Activity, TrendingUp
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -690,7 +690,7 @@ const IndicatorOverview: React.FC<IndicatorOverviewProps> = ({ indicator }) => {
         <div>
           <div className="flex items-center gap-2 mb-2">
             <div className="p-2 bg-blue-50 rounded-full">
-              <LineChart className="w-5 h-5 text-blue-600" />
+              <Activity className="w-5 h-5 text-blue-600" />
             </div>
             <div className="text-sm text-gray-600">Most Recent Data</div>
           </div>
@@ -706,7 +706,7 @@ const IndicatorOverview: React.FC<IndicatorOverviewProps> = ({ indicator }) => {
         <div>
           <div className="flex items-center gap-2 mb-2">
             <div className="p-2 bg-gray-100 rounded-full">
-              <ChevronRight className="w-5 h-5 text-gray-600" />
+              <Target className="w-5 h-5 text-gray-600" />
             </div>
             <div className="text-sm text-gray-600">Target</div>
           </div>
@@ -721,7 +721,7 @@ const IndicatorOverview: React.FC<IndicatorOverviewProps> = ({ indicator }) => {
         <div>
           <div className="flex items-center gap-2 mb-2">
             <div className="p-2 bg-gray-100 rounded-full">
-              <LineChart className="w-5 h-5 text-gray-600" />
+              <TrendingUp className="w-5 h-5 text-gray-600" />
             </div>
             <div className="text-sm text-gray-600">Baseline</div>
           </div>
@@ -756,7 +756,6 @@ const IndicatorOverview: React.FC<IndicatorOverviewProps> = ({ indicator }) => {
     </div>
   );
 };
-
 
 // IndicatorCard Component
 const IndicatorCard: React.FC<IndicatorCardProps> = ({ indicator, onClick }) => {
