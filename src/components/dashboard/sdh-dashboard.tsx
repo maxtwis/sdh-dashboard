@@ -105,6 +105,46 @@ interface ProgressSegmentProps {
   indicatorType: 'direct' | 'reverse';
 }
 
+const ProgressSegment: React.FC<ProgressSegmentProps> = ({ progress, status, indicatorType }) => {
+  const getProgressColors = () => {
+    if (status === 'Target Achieved') {
+      return 'bg-green-500';
+    }
+    
+    if (status === 'Improving') {
+      if (progress < 25) return 'bg-yellow-500';
+      if (progress < 50) return 'bg-yellow-400';
+      if (progress < 75) return 'bg-blue-400';
+      return 'bg-blue-500';
+    }
+    
+    if (status === 'Getting Worse') {
+      return 'bg-red-500';
+    }
+    
+    return 'bg-gray-400';
+  };
+
+  return (
+    <div className="relative h-2 bg-gray-200 rounded-full overflow-hidden">
+      <div 
+        className={`h-full transition-all duration-500 ${getProgressColors()}`}
+        style={{ width: `${progress}%` }}
+      />
+      {progress < 100 && (
+        <div 
+          className="absolute top-0 h-full w-0.5 bg-blue-800"
+          style={{ left: '100%', transform: 'translateX(-1px)' }}
+        />
+      )}
+      <div 
+        className="absolute top-0 h-full w-0.5 bg-gray-400"
+        style={{ left: '0%' }}
+      />
+    </div>
+  );
+};
+
 // Unit System
 class UnitSystem {
   static isPercentage(unit: string): boolean {
@@ -171,6 +211,8 @@ class UnitSystem {
     }
   }
 }
+
+
 
 // Helper Functions
 const formatValue = (value: number | null | undefined, unit: string): string => {
@@ -295,52 +337,54 @@ const processCSVData = (data: any[]): Indicator[] => {
           .filter(Boolean)
       ));
       
-      const current = row.Total ? parseFloat(row.Total) : NaN;
-      const baseline = row.Baseline ? parseFloat(row.Baseline) : NaN;
-      const target = row.Target ? parseFloat(row.Target) : NaN;
-      const year = row.Year ? parseInt(row.Year) : NaN;
+      // Notice we're using 'Current' instead of 'Total' here
+      const current = row['Current'] ? parseFloat(row['Current']) : NaN;
+      const baseline = row['Baseline'] ? parseFloat(row['Baseline']) : NaN;
+      const target = row['Target'] ? parseFloat(row['Target']) : NaN;
+      const year = row['Year'] ? parseInt(row['Year']) : NaN;
 
       processedData[id] = {
         id,
-        domain: row.Domain,
-        subdomain: row.Subdomain,
+        domain: row['Domain'],
+        subdomain: row['Subdomain'],
         title: row['Indicator Title'],
-        description: row.Description || '',
-        unit: row.Unit || '%',
-        indicatorType: row.IndicatorType || 'direct',
+        description: row['Description'] || '',
+        unit: row['Unit'] || '%',
+        indicatorType: (row['IndicatorType'] || 'direct').toLowerCase(),
         target,
         baseline,
         current,
-        warning: row.Warning || '',
-        status: UnitSystem.calculateStatus(current, baseline, target, row.IndicatorType || 'direct'),
         currentYear: year,
+        warning: row['Warning'] || '',
+        status: UnitSystem.calculateStatus(current, baseline, target, row['IndicatorType']?.toLowerCase() || 'direct'),
         disaggregationTypes,
         timeSeriesData: [],
         details: {
-          methodology: row.Methodology || '',
-          dataSources: row.DataSources ? row.DataSources.split(';') : [],
-          targetMethod: row.TargetMethod || '',
+          methodology: row['Methodology'] || '',
+          dataSources: row['DataSources'] ? row['DataSources'].split(';') : [],
+          targetMethod: row['TargetMethod'] || '',
           relevantPolicies: []
         }
       };
     }
     
-    // Process time series data
-    const timeSeriesTotal = row.Total ? parseFloat(row.Total) : NaN;
-    if (!isNaN(timeSeriesTotal) && row.Year) {
+    // Process time series data using 'Total' column for the actual values
+    const timeSeriesTotal = row['Total'] ? parseFloat(row['Total']) : NaN;
+    if (!isNaN(timeSeriesTotal) && row['Year']) {
       let timeSeriesPoint = processedData[id].timeSeriesData.find(
-        t => t.year === row.Year
+        t => t.year === row['Year']
       );
 
       if (!timeSeriesPoint) {
         timeSeriesPoint = {
-          year: row.Year,
+          year: row['Year'],
           total: timeSeriesTotal,
           disaggregation: []
         };
         processedData[id].timeSeriesData.push(timeSeriesPoint);
       }
 
+      // Process disaggregation data
       if (row['Disaggregation Category'] && row['Disaggregation Value'] && row['Percentage']) {
         const percentage = parseFloat(row['Percentage']);
         if (!isNaN(percentage)) {
@@ -355,47 +399,6 @@ const processCSVData = (data: any[]): Indicator[] => {
   });
 
   return Object.values(processedData);
-};
-
-// ProgressSegment Component
-const ProgressSegment: React.FC<ProgressSegmentProps> = ({ progress, status, indicatorType }) => {
-  const getProgressColors = () => {
-    if (status === 'Target Achieved') {
-      return 'bg-green-500';
-    }
-    
-    if (status === 'Improving') {
-      if (progress < 25) return 'bg-yellow-500';
-      if (progress < 50) return 'bg-yellow-400';
-      if (progress < 75) return 'bg-blue-400';
-      return 'bg-blue-500';
-    }
-    
-    if (status === 'Getting Worse') {
-      return 'bg-red-500';
-    }
-    
-    return 'bg-gray-400';
-  };
-
-  return (
-    <div className="relative h-2 bg-gray-200 rounded-full overflow-hidden">
-      <div 
-        className={`h-full transition-all duration-500 ${getProgressColors()}`}
-        style={{ width: `${progress}%` }}
-      />
-      {progress < 100 && (
-        <div 
-          className="absolute top-0 h-full w-0.5 bg-blue-800"
-          style={{ left: '100%', transform: 'translateX(-1px)' }}
-        />
-      )}
-      <div 
-        className="absolute top-0 h-full w-0.5 bg-gray-400"
-        style={{ left: '0%' }}
-      />
-    </div>
-  );
 };
 
 // DataChart Component
@@ -686,6 +689,7 @@ const IndicatorOverview: React.FC<IndicatorOverviewProps> = ({ indicator }) => {
     </div>
   );
 };
+
 
 // IndicatorCard Component
 const IndicatorCard: React.FC<IndicatorCardProps> = ({ indicator, onClick }) => {
@@ -1176,6 +1180,9 @@ export default function SDHDashboard() {
         const lines = csv.split('\n');
         const headers = lines[0].split(',').map(h => h.trim());
         
+        // Log headers to verify what we're getting from CSV
+        console.log('CSV Headers:', headers);
+        
         const data = lines.slice(1)
           .filter(line => line.trim())
           .map(line => {
@@ -1185,35 +1192,66 @@ export default function SDHDashboard() {
               return obj;
             }, {} as Record<string, string>);
           });
-
+  
+        // Log first row of data to verify structure
+        console.log('First row of CSV data:', data[0]);
+  
         const finalIndicators = processCSVData(data);
-
-        // Save to Supabase
-        const { error } = await supabase
-          .from('indicators')
-          .upsert(
-            finalIndicators.map(indicator => ({
-              ...indicator,
-              time_series_data: indicator.timeSeriesData,
-              disaggregation_types: indicator.disaggregationTypes
-            })),
-            { onConflict: 'id' }
-          );
-
-        if (error) throw error;
-
+  
+        // Log processed data to verify structure
+        console.log('First processed indicator:', finalIndicators[0]);
+  
+        // Format data for Supabase
+        const supabaseData = finalIndicators.map(indicator => ({
+          id: indicator.id,
+          domain: indicator.domain,
+          subdomain: indicator.subdomain,
+          title: indicator.title,
+          description: indicator.description,
+          unit: indicator.unit,
+          indicator_type: indicator.indicatorType,
+          target: indicator.target,
+          baseline: indicator.baseline,
+          current: indicator.current,
+          current_year: indicator.currentYear,
+          warning: indicator.warning || '',
+          status: indicator.status,
+          time_series_data: indicator.timeSeriesData,
+          disaggregation_types: indicator.disaggregationTypes,
+          details: {
+            methodology: indicator.details.methodology,
+            dataSources: indicator.details.dataSources,
+            targetMethod: indicator.details.targetMethod,
+            relevantPolicies: indicator.details.relevantPolicies
+          }
+        }));
+  
+        // Insert data in smaller batches
+        const BATCH_SIZE = 50;
+        for (let i = 0; i < supabaseData.length; i += BATCH_SIZE) {
+          const batch = supabaseData.slice(i, i + BATCH_SIZE);
+          const { error } = await supabase
+            .from('indicators')
+            .upsert(batch, { onConflict: 'id' });
+  
+          if (error) {
+            console.error('Supabase error:', error);
+            throw error;
+          }
+        }
+  
         setIndicators(finalIndicators);
         if (finalIndicators.length > 0) {
           setSelectedDomain(finalIndicators[0].domain);
         }
       } catch (error) {
         console.error('Error processing file:', error);
-        alert('Error processing or saving file. Please try again.');
+        alert(`Error processing or saving file: ${error instanceof Error ? error.message : 'Unknown error'}`);
       } finally {
         setIsLoading(false);
       }
     };
-
+  
     reader.readAsText(file);
   };
 
