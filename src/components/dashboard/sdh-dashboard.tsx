@@ -1315,29 +1315,37 @@ export default function SDHDashboard() {
   const handleSaveIndicator = async (updatedIndicator: Indicator) => {
     try {
       setIsLoading(true);
+
+      // Ensure we preserve the currentYear
+    const indicatorWithYear = {
+      ...updatedIndicator,
+      currentYear: updatedIndicator.currentYear || 
+                  indicators.find(i => i.id === updatedIndicator.id)?.currentYear ||
+                  new Date().getFullYear()  // fallback to current year if none exists
+    };
       
       // Prepare the data in the format Supabase expects
       const supabaseData = {
-        id: updatedIndicator.id,
-        domain: updatedIndicator.domain,
-        subdomain: updatedIndicator.subdomain,
-        title: updatedIndicator.title,
-        description: updatedIndicator.description,
-        unit: updatedIndicator.unit,
-        indicator_type: updatedIndicator.indicatorType,
-        target: updatedIndicator.target,
-        baseline: updatedIndicator.baseline,
-        current: updatedIndicator.current,
-        current_year: updatedIndicator.currentYear,
-        warning: updatedIndicator.warning || '',
-        status: updatedIndicator.status,
-        time_series_data: updatedIndicator.timeSeriesData,
-        disaggregation_types: updatedIndicator.disaggregationTypes,
+        id: indicatorWithYear.id,
+        domain: indicatorWithYear.domain,
+        subdomain: indicatorWithYear.subdomain,
+        title: indicatorWithYear.title,
+        description: indicatorWithYear.description,
+        unit: indicatorWithYear.unit,
+        indicator_type: indicatorWithYear.indicatorType,
+        target: indicatorWithYear.target,
+        baseline: indicatorWithYear.baseline,
+        current: indicatorWithYear.current,
+        current_year: indicatorWithYear.currentYear, // Make sure this is included
+        warning: indicatorWithYear.warning || '',
+        status: indicatorWithYear.status,
+        time_series_data: indicatorWithYear.timeSeriesData,
+        disaggregation_types: indicatorWithYear.disaggregationTypes,
         details: {
-          methodology: updatedIndicator.details.methodology,
-          dataSources: updatedIndicator.details.dataSources,
-          targetMethod: updatedIndicator.details.targetMethod,
-          relevantPolicies: updatedIndicator.details.relevantPolicies
+          methodology: indicatorWithYear.details.methodology,
+          dataSources: indicatorWithYear.details.dataSources,
+          targetMethod: indicatorWithYear.details.targetMethod,
+          relevantPolicies: indicatorWithYear.details.relevantPolicies
         }
       };
   
@@ -1345,26 +1353,25 @@ export default function SDHDashboard() {
       console.log('Updating indicator with data:', supabaseData);
   
       const { error } = await supabase
-        .from('indicators')
-        .upsert(supabaseData)
-        .eq('id', updatedIndicator.id); // Add this line to ensure we're updating the correct record
-  
-      if (error) {
-        console.error('Supabase error:', error);
-        throw error;
-      }
+      .from('indicators')
+      .upsert(supabaseData)
+      .eq('id', indicatorWithYear.id);
+
+    if (error) {
+      console.error('Supabase error:', error);
+      throw error;
+    }
   
       // Update local state
       setIndicators(prev => 
         prev.map(ind => 
-          ind.id === updatedIndicator.id ? updatedIndicator : ind
+          ind.id === indicatorWithYear.id ? indicatorWithYear : ind
         )
       );
       
-      setSelectedIndicator(updatedIndicator);
+      setSelectedIndicator(indicatorWithYear);
       setIsEditing(false);
   
-      // Show success message
       alert('Changes saved successfully');
   
     } catch (error) {
