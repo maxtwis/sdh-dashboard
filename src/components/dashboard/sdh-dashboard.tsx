@@ -1501,30 +1501,29 @@ export default function SDHDashboard() {
   // Main dashboard view
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* New blue header */}
-      <div className="bg-blue-700 text-white p-4 flex items-center justify-between">
+      {/* Updated blue header with correct color */}
+      <div className="bg-[#1A56DB] text-white px-4 py-3 flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <div className="h-8 w-8 bg-white rounded flex items-center justify-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-[#1A56DB]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
           <h1 className="text-xl font-semibold">Social Determinants of Health Equity (SDHE) Dashboard</h1>
         </div>
-        <div className="flex items-center space-x-4">
-          <button className="px-3 py-1.5 text-sm text-white hover:bg-blue-600 rounded">About</button>
-          <button className="px-3 py-1.5 text-sm text-white hover:bg-blue-600 rounded">Download data</button>
-          <button className="px-3 py-1.5 text-sm text-white hover:bg-blue-600 rounded">Share</button>
+        <div>
           <Button
             variant="outline"
             onClick={() => setIsAdmin(!isAdmin)}
-            className={`bg-white text-blue-700 hover:bg-blue-50 border-none ${isAdmin ? 'bg-blue-50' : ''}`}
+            className={`bg-white text-[#1A56DB] hover:bg-blue-50 border-none ${isAdmin ? 'bg-blue-50' : ''}`}
           >
             {isAdmin ? 'Admin Mode' : 'View Mode'}
           </Button>
         </div>
       </div>
 
+      
+      <div className="p-6 pt-8">
       {isAdmin && (
         <Card className="mb-6">
           <CardHeader>
@@ -1651,5 +1650,6 @@ export default function SDHDashboard() {
         </div>
       </div>
     </div>
+  </div>
   );
 }
