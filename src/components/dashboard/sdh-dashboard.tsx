@@ -1,7 +1,6 @@
-// sdh-dashboard Coded by maxtwis and Claude 3.5 Sonnet
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -19,6 +18,7 @@ import {
   Tooltip,
   Legend
 } from 'recharts';
+import { supabase } from '@/lib/supabase';
 
 // Chart colors
 const colors = [
@@ -53,7 +53,6 @@ interface IndicatorDetails {
   targetMethod: string;
 }
 
-// Main indicator interface
 interface Indicator {
   id: string;
   domain: string;
@@ -61,7 +60,7 @@ interface Indicator {
   title: string;
   description: string;
   unit: string;
-  indicatorType: 'direct' | 'reverse'; // direct = higher is better, reverse = lower is better
+  indicatorType: 'direct' | 'reverse';
   target: number;
   baseline: number;
   current: number;
@@ -73,14 +72,12 @@ interface Indicator {
   disaggregationTypes: string[];
 }
 
-// Form Props
 interface EditIndicatorFormProps {
   indicator: Indicator;
   onSave: (updatedIndicator: Indicator) => void;
   onCancel: () => void;
 }
 
-// Component Props
 interface DataChartProps {
   data: TimeSeriesDataPoint[];
   disaggregationTypes: string[];
@@ -107,181 +104,6 @@ interface ProgressSegmentProps {
   status: Indicator['status'];
   indicatorType: 'direct' | 'reverse';
 }
-
-const ProgressSegment: React.FC<ProgressSegmentProps> = ({ progress, status, indicatorType }) => {
-  // Define color segments based on progress percentage
-  const getProgressColors = () => {
-    if (status === 'Target Achieved') {
-      return 'bg-green-500';
-    }
-    
-    // For values better than baseline but far from target
-    if (status === 'Improving') {
-      if (progress < 25) return 'bg-yellow-500'; // Far from target
-      if (progress < 50) return 'bg-yellow-400'; // Getting closer
-      if (progress < 75) return 'bg-blue-400';   // Good progress
-      return 'bg-blue-500';                      // Close to target
-    }
-    
-    if (status === 'Getting Worse') {
-      return 'bg-red-500';
-    }
-    
-    return 'bg-gray-400'; // Default for "Little or No Change" or other states
-  };
-
-  return (
-    <div className="relative h-2 bg-gray-200 rounded-full overflow-hidden">
-      {/* Main progress bar */}
-      <div 
-        className={`h-full transition-all duration-500 ${getProgressColors()}`}
-        style={{ width: `${progress}%` }}
-      />
-      
-      {/* Target marker */}
-      {progress < 100 && (
-        <div 
-          className="absolute top-0 h-full w-0.5 bg-blue-800"
-          style={{ left: '100%', transform: 'translateX(-1px)' }}
-        />
-      )}
-      
-      {/* Optional: Add baseline marker */}
-      <div 
-        className="absolute top-0 h-full w-0.5 bg-gray-400"
-        style={{ left: '0%' }}
-      />
-    </div>
-  );
-};
-
-// Indicator Card
-const IndicatorCard: React.FC<IndicatorCardProps> = ({ indicator, onClick }) => {
-  const progress = UnitSystem.calculateProgress(
-    indicator.current,
-    indicator.baseline,
-    indicator.target,
-    indicator.indicatorType
-  );
-  
-  const getStatusDisplay = () => {
-    if (indicator.status === 'Improving') {
-      if (progress < 25) {
-        return 'Initial Progress';
-      } else if (progress < 50) {
-        return 'Making Progress';
-      } else if (progress < 75) {
-        return 'Significant Progress';
-      } else {
-        return 'Near Target';
-      }
-    }
-    return indicator.status;
-  };
-
-  return (
-    <Card 
-      className="mb-4 cursor-pointer hover:shadow-md transition-shadow"
-      onClick={onClick}
-    >
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <span className="text-gray-500 text-sm">{indicator.id}</span>
-            <span className="text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full text-sm">
-              {indicator.subdomain}
-            </span>
-          </div>
-          <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium gap-1 ${
-            isNaN(indicator.current) || isNaN(indicator.baseline) || isNaN(indicator.target)
-              ? 'bg-gray-100 text-gray-800 border border-gray-200'
-              : indicator.status === 'Target Achieved'
-              ? 'bg-green-100 text-green-800 border border-green-200'
-              : indicator.status === 'Improving'
-              ? 'bg-blue-100 text-blue-800 border border-blue-200'
-              : indicator.status === 'Getting Worse'
-              ? 'bg-red-100 text-red-800 border border-red-200'
-              : 'bg-yellow-100 text-yellow-800 border border-yellow-200'
-          }`}>
-            <span className={`w-2 h-2 rounded-full ${
-              isNaN(indicator.current) || isNaN(indicator.baseline) || isNaN(indicator.target)
-                ? 'bg-gray-500'
-                : indicator.status === 'Target Achieved'
-                ? 'bg-green-500'
-                : indicator.status === 'Improving'
-                ? 'bg-blue-500'
-                : indicator.status === 'Getting Worse'
-                ? 'bg-red-500'
-                : 'bg-yellow-500'
-            }`} />
-            {getStatusDisplay()}
-          </div>
-        </div>
-        
-        <h3 className="text-lg font-semibold mb-4">{indicator.title}</h3>
-        
-        <div className="grid grid-cols-3 gap-8 mb-4">
-          <div>
-            <div className="flex items-center gap-2 text-blue-600">
-              <span className="text-sm">Target {indicator.indicatorType === 'direct' ? '↑' : '↓'}</span>
-            </div>
-            <div className="flex items-baseline gap-1">
-              <span className="text-lg font-semibold">
-                {formatValue(indicator.target, indicator.unit)}
-              </span>
-              <span className="text-sm text-gray-500">{indicator.unit}</span>
-            </div>
-          </div>
-          <div>
-            <div className="flex items-center gap-2 text-gray-600">
-              <span className="text-sm">Current ({indicator.currentYear})</span>
-            </div>
-            <div className="flex items-baseline gap-1">
-              <span className="text-lg font-semibold">
-                {formatValue(indicator.current, indicator.unit)}
-              </span>
-              <span className="text-sm text-gray-500">{indicator.unit}</span>
-            </div>
-          </div>
-          <div>
-            <div className="flex items-center gap-2 text-gray-600">
-              <span className="text-sm">Progress</span>
-            </div>
-            <div className="flex items-baseline gap-1">
-              <span className="text-lg font-semibold">
-                {progress.toFixed(1)}
-              </span>
-              <span className="text-sm text-gray-500">%</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <ProgressSegment 
-            progress={progress}
-            status={indicator.status}
-            indicatorType={indicator.indicatorType}
-          />
-          <div className="flex justify-between text-sm text-gray-500">
-            <span>Baseline</span>
-            <span>{getStatusDisplay()}</span>
-            <span>Target</span>
-          </div>
-        </div>
-
-        {indicator.disaggregationTypes.length > 0 && (
-          <div className="mt-4 flex flex-wrap gap-2">
-            {indicator.disaggregationTypes.map(type => (
-              <span key={type} className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                {formatCategoryName(type)}
-              </span>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-};
 
 // Unit System
 class UnitSystem {
@@ -490,9 +312,7 @@ const processCSVData = (data: any[]): Indicator[] => {
         baseline,
         current,
         warning: row.Warning || '',
-        status: isNaN(current) || isNaN(baseline) || isNaN(target) 
-          ? 'No Data' 
-          : UnitSystem.calculateStatus(current, baseline, target, row.IndicatorType || 'direct'),
+        status: UnitSystem.calculateStatus(current, baseline, target, row.IndicatorType || 'direct'),
         currentYear: year,
         disaggregationTypes,
         timeSeriesData: [],
@@ -537,7 +357,46 @@ const processCSVData = (data: any[]): Indicator[] => {
   return Object.values(processedData);
 };
 
-// [Continue in the same sdh-dashboard.tsx file]
+// ProgressSegment Component
+const ProgressSegment: React.FC<ProgressSegmentProps> = ({ progress, status, indicatorType }) => {
+  const getProgressColors = () => {
+    if (status === 'Target Achieved') {
+      return 'bg-green-500';
+    }
+    
+    if (status === 'Improving') {
+      if (progress < 25) return 'bg-yellow-500';
+      if (progress < 50) return 'bg-yellow-400';
+      if (progress < 75) return 'bg-blue-400';
+      return 'bg-blue-500';
+    }
+    
+    if (status === 'Getting Worse') {
+      return 'bg-red-500';
+    }
+    
+    return 'bg-gray-400';
+  };
+
+  return (
+    <div className="relative h-2 bg-gray-200 rounded-full overflow-hidden">
+      <div 
+        className={`h-full transition-all duration-500 ${getProgressColors()}`}
+        style={{ width: `${progress}%` }}
+      />
+      {progress < 100 && (
+        <div 
+          className="absolute top-0 h-full w-0.5 bg-blue-800"
+          style={{ left: '100%', transform: 'translateX(-1px)' }}
+        />
+      )}
+      <div 
+        className="absolute top-0 h-full w-0.5 bg-gray-400"
+        style={{ left: '0%' }}
+      />
+    </div>
+  );
+};
 
 // DataChart Component
 const DataChart: React.FC<DataChartProps> = ({ data, disaggregationTypes, unit }) => {
@@ -556,7 +415,7 @@ const DataChart: React.FC<DataChartProps> = ({ data, disaggregationTypes, unit }
     return { ...baseData, ...disaggregationData };
   });
 
-  // Sort data by year to ensure correct chronological order
+  // Sort data by year
   const sortedChartData = [...chartData].sort((a, b) => parseInt(a.year) - parseInt(b.year));
 
   // Get unique values for selected disaggregation
@@ -650,6 +509,9 @@ const DataTable: React.FC<DataTableProps> = ({
 }) => {
   const [selectedDisaggregation, setSelectedDisaggregation] = useState(disaggregationTypes[0]);
 
+  // Sort data by year
+  const sortedData = [...data].sort((a, b) => parseInt(a.year) - parseInt(b.year));
+
   const disaggregationValues = Array.from(new Set(
     data.flatMap(point => 
       point.disaggregation
@@ -693,7 +555,7 @@ const DataTable: React.FC<DataTableProps> = ({
             </tr>
           </thead>
           <tbody>
-            {data.map((point, index) => (
+            {sortedData.map((point, index) => (
               <tr key={point.year} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                 <td className="px-4 py-2">{point.year}</td>
                 <td className="px-4 py-2">
@@ -825,6 +687,134 @@ const IndicatorOverview: React.FC<IndicatorOverviewProps> = ({ indicator }) => {
   );
 };
 
+// IndicatorCard Component
+const IndicatorCard: React.FC<IndicatorCardProps> = ({ indicator, onClick }) => {
+  const progress = UnitSystem.calculateProgress(
+    indicator.current,
+    indicator.baseline,
+    indicator.target,
+    indicator.indicatorType
+  );
+  
+  const getStatusDisplay = () => {
+    if (indicator.status === 'Improving') {
+      if (progress < 25) {
+        return 'Initial Progress';
+      } else if (progress < 50) {
+        return 'Making Progress';
+      } else if (progress < 75) {
+        return 'Significant Progress';
+      } else {
+        return 'Near Target';
+      }
+    }
+    return indicator.status;
+  };
+
+  return (
+    <Card 
+      className="mb-4 cursor-pointer hover:shadow-md transition-shadow"
+      onClick={onClick}
+    >
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <span className="text-gray-500 text-sm">{indicator.id}</span>
+            <span className="text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full text-sm">
+              {indicator.subdomain}
+            </span>
+          </div>
+          <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium gap-1 ${
+            isNaN(indicator.current) || isNaN(indicator.baseline) || isNaN(indicator.target)
+              ? 'bg-gray-100 text-gray-800 border border-gray-200'
+              : indicator.status === 'Target Achieved'
+              ? 'bg-green-100 text-green-800 border border-green-200'
+              : indicator.status === 'Improving'
+              ? 'bg-blue-100 text-blue-800 border border-blue-200'
+              : indicator.status === 'Getting Worse'
+              ? 'bg-red-100 text-red-800 border border-red-200'
+              : 'bg-yellow-100 text-yellow-800 border border-yellow-200'
+          }`}>
+            <span className={`w-2 h-2 rounded-full ${
+              isNaN(indicator.current) || isNaN(indicator.baseline) || isNaN(indicator.target)
+                ? 'bg-gray-500'
+                : indicator.status === 'Target Achieved'
+                ? 'bg-green-500'
+                : indicator.status === 'Improving'
+                ? 'bg-blue-500'
+                : indicator.status === 'Getting Worse'
+                ? 'bg-red-500'
+                : 'bg-yellow-500'
+            }`} />
+            {getStatusDisplay()}
+          </div>
+        </div>
+        
+        <h3 className="text-lg font-semibold mb-4">{indicator.title}</h3>
+        
+        <div className="grid grid-cols-3 gap-8 mb-4">
+          <div>
+            <div className="flex items-center gap-2 text-blue-600">
+              <span className="text-sm">Target {indicator.indicatorType === 'direct' ? '↑' : '↓'}</span>
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className="text-lg font-semibold">
+                {formatValue(indicator.target, indicator.unit)}
+              </span>
+              <span className="text-sm text-gray-500">{indicator.unit}</span>
+            </div>
+          </div>
+          <div>
+            <div className="flex items-center gap-2 text-gray-600">
+              <span className="text-sm">Current ({indicator.currentYear})</span>
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className="text-lg font-semibold">
+                {formatValue(indicator.current, indicator.unit)}
+              </span>
+              <span className="text-sm text-gray-500">{indicator.unit}</span>
+            </div>
+          </div>
+          <div>
+            <div className="flex items-center gap-2 text-gray-600">
+              <span className="text-sm">Progress</span>
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className="text-lg font-semibold">
+                {progress.toFixed(1)}
+              </span>
+              <span className="text-sm text-gray-500">%</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <ProgressSegment 
+            progress={progress}
+            status={indicator.status}
+            indicatorType={indicator.indicatorType}
+          />
+          <div className="flex justify-between text-sm text-gray-500">
+            <span>Baseline</span>
+            <span>{getStatusDisplay()}</span>
+            <span>Target</span>
+          </div>
+        </div>
+
+        {indicator.disaggregationTypes.length > 0 && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {indicator.disaggregationTypes.map(type => (
+              <span key={type} className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                {formatCategoryName(type)}
+              </span>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
 // Edit Form Component
 const EditIndicatorForm: React.FC<EditIndicatorFormProps> = ({ 
   indicator, 
@@ -910,14 +900,15 @@ const EditIndicatorForm: React.FC<EditIndicatorFormProps> = ({
     }));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const newStatus = UnitSystem.calculateStatus(
       formData.current,
       formData.baseline,
       formData.target,
       formData.indicatorType
     );
-    onSave({ ...formData, status: newStatus });
+    const updatedIndicator = { ...formData, status: newStatus };
+    onSave(updatedIndicator);
   };
 
   return (
@@ -991,7 +982,6 @@ const EditIndicatorForm: React.FC<EditIndicatorFormProps> = ({
         </div>
       </div>
 
-      {/* Indicator Type */}
       <div>
         <label className="text-sm font-medium">Indicator Type</label>
         <select
@@ -1007,7 +997,6 @@ const EditIndicatorForm: React.FC<EditIndicatorFormProps> = ({
         </select>
       </div>
 
-      {/* Methodology Section */}
       <div>
         <h3 className="font-semibold mb-4">Data Methodology</h3>
         
@@ -1073,7 +1062,6 @@ const EditIndicatorForm: React.FC<EditIndicatorFormProps> = ({
         </div>
       </div>
 
-      {/* Policies Section */}
       <div>
         <div className="flex justify-between items-center mb-4">
           <h3 className="font-semibold">Relevant Policies</h3>
@@ -1142,6 +1130,36 @@ export default function SDHDashboard() {
   const [fileName, setFileName] = useState<string>('');
   const [isAdmin, setIsAdmin] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load data on component mount
+  useEffect(() => {
+    const loadIndicators = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('indicators')
+          .select('*');
+        
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+          const processedData = data.map(row => ({
+            ...row,
+            timeSeriesData: row.time_series_data || [],
+            disaggregationTypes: row.disaggregation_types || [],
+          }));
+          setIndicators(processedData);
+          setSelectedDomain(processedData[0].domain);
+        }
+      } catch (error) {
+        console.error('Error loading indicators:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadIndicators();
+  }, []);
 
   // File Upload Handler
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -1149,9 +1167,10 @@ export default function SDHDashboard() {
     if (!file) return;
   
     setFileName(file.name);
+    setIsLoading(true);
     
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const csv = e.target?.result as string;
         const lines = csv.split('\n');
@@ -1168,19 +1187,77 @@ export default function SDHDashboard() {
           });
 
         const finalIndicators = processCSVData(data);
+
+        // Save to Supabase
+        const { error } = await supabase
+          .from('indicators')
+          .upsert(
+            finalIndicators.map(indicator => ({
+              ...indicator,
+              time_series_data: indicator.timeSeriesData,
+              disaggregation_types: indicator.disaggregationTypes
+            })),
+            { onConflict: 'id' }
+          );
+
+        if (error) throw error;
+
         setIndicators(finalIndicators);
-        
         if (finalIndicators.length > 0) {
           setSelectedDomain(finalIndicators[0].domain);
         }
       } catch (error) {
         console.error('Error processing file:', error);
-        alert('Error processing file. Please check the file format.');
+        alert('Error processing or saving file. Please try again.');
+      } finally {
+        setIsLoading(false);
       }
     };
 
     reader.readAsText(file);
   };
+
+  // Save indicator handler
+  const handleSaveIndicator = async (updatedIndicator: Indicator) => {
+    try {
+      setIsLoading(true);
+      
+      const { error } = await supabase
+        .from('indicators')
+        .upsert({
+          ...updatedIndicator,
+          time_series_data: updatedIndicator.timeSeriesData,
+          disaggregation_types: updatedIndicator.disaggregationTypes
+        });
+
+      if (error) throw error;
+
+      setIndicators(prev => 
+        prev.map(ind => 
+          ind.id === updatedIndicator.id ? updatedIndicator : ind
+        )
+      );
+      
+      setSelectedIndicator(updatedIndicator);
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Error saving indicator:', error);
+      alert('Error saving changes. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Detail view rendering
   if (view === 'detail' && selectedIndicator) {
@@ -1239,15 +1316,7 @@ export default function SDHDashboard() {
                 {isEditing ? (
                   <EditIndicatorForm
                     indicator={selectedIndicator}
-                    onSave={(updatedIndicator) => {
-                      setIndicators(prev => 
-                        prev.map(ind => 
-                          ind.id === updatedIndicator.id ? updatedIndicator : ind
-                        )
-                      );
-                      setSelectedIndicator(updatedIndicator);
-                      setIsEditing(false);
-                    }}
+                    onSave={handleSaveIndicator}
                     onCancel={() => setIsEditing(false)}
                   />
                 ) : (
@@ -1481,6 +1550,7 @@ export default function SDHDashboard() {
             )}
           </CardContent>
         </Card>
+
         {/* Indicator cards */}
         <div className="flex-1">
           {selectedDomain && indicators.length > 0 ? (
