@@ -1260,16 +1260,45 @@ export default function SDHDashboard() {
     try {
       setIsLoading(true);
       
+      // Prepare the data in the format Supabase expects
+      const supabaseData = {
+        id: updatedIndicator.id,
+        domain: updatedIndicator.domain,
+        subdomain: updatedIndicator.subdomain,
+        title: updatedIndicator.title,
+        description: updatedIndicator.description,
+        unit: updatedIndicator.unit,
+        indicator_type: updatedIndicator.indicatorType,
+        target: updatedIndicator.target,
+        baseline: updatedIndicator.baseline,
+        current: updatedIndicator.current,
+        current_year: updatedIndicator.currentYear,
+        warning: updatedIndicator.warning || '',
+        status: updatedIndicator.status,
+        time_series_data: updatedIndicator.timeSeriesData,
+        disaggregation_types: updatedIndicator.disaggregationTypes,
+        details: {
+          methodology: updatedIndicator.details.methodology,
+          dataSources: updatedIndicator.details.dataSources,
+          targetMethod: updatedIndicator.details.targetMethod,
+          relevantPolicies: updatedIndicator.details.relevantPolicies
+        }
+      };
+  
+      // Log the data being sent for debugging
+      console.log('Updating indicator with data:', supabaseData);
+  
       const { error } = await supabase
         .from('indicators')
-        .upsert({
-          ...updatedIndicator,
-          time_series_data: updatedIndicator.timeSeriesData,
-          disaggregation_types: updatedIndicator.disaggregationTypes
-        });
-
-      if (error) throw error;
-
+        .upsert(supabaseData)
+        .eq('id', updatedIndicator.id); // Add this line to ensure we're updating the correct record
+  
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
+  
+      // Update local state
       setIndicators(prev => 
         prev.map(ind => 
           ind.id === updatedIndicator.id ? updatedIndicator : ind
@@ -1278,6 +1307,10 @@ export default function SDHDashboard() {
       
       setSelectedIndicator(updatedIndicator);
       setIsEditing(false);
+  
+      // Show success message
+      alert('Changes saved successfully');
+  
     } catch (error) {
       console.error('Error saving indicator:', error);
       alert('Error saving changes. Please try again.');
@@ -1285,17 +1318,6 @@ export default function SDHDashboard() {
       setIsLoading(false);
     }
   };
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
 
   // Detail view rendering
   if (view === 'detail' && selectedIndicator) {
