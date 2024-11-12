@@ -983,28 +983,7 @@ const EditIndicatorForm: React.FC<EditIndicatorFormProps> = ({
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="text-sm font-medium">Title</label>
-          <input
-            type="text"
-            value={formData.title}
-            onChange={e => setFormData(prev => ({ ...prev, title: e.target.value }))}
-            className="w-full mt-1 p-2 border rounded"
-          />
-        </div>
-        <div>
-          <label className="text-sm font-medium">Description</label>
-          <textarea
-            value={formData.description}
-            onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
-            className="w-full mt-1 p-2 border rounded"
-            rows={3}
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-4 gap-4">
         <div>
           <label className="text-sm font-medium">Current Value</label>
           <div className="flex items-center gap-2">
@@ -1050,7 +1029,22 @@ const EditIndicatorForm: React.FC<EditIndicatorFormProps> = ({
             <span className="text-sm text-gray-500">{formData.unit}</span>
           </div>
         </div>
+          <div>
+            <label className="text-sm font-medium">Current Year</label>
+            <input
+              type="number"
+              value={formData.currentYear || ''}
+              onChange={(e) => setFormData(prev => ({ 
+                ...prev, 
+                currentYear: e.target.value ? parseInt(e.target.value) : formData.currentYear 
+              }))}
+              className="w-full mt-1 p-2 border rounded"
+            />
+          </div>
       </div>
+
+
+      
 
       <div>
         <label className="text-sm font-medium">Indicator Type</label>
@@ -1096,6 +1090,8 @@ const EditIndicatorForm: React.FC<EditIndicatorFormProps> = ({
               rows={3}
             />
           </div>
+
+
 
           <div>
             <div className="flex justify-between items-center mb-2">
