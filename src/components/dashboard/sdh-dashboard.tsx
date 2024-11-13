@@ -985,6 +985,7 @@ const EditIndicatorForm: React.FC<EditIndicatorFormProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* Basic Information */}
       <div className="grid grid-cols-4 gap-4">
         <div>
           <label className="text-sm font-medium">Current Value</label>
@@ -1031,22 +1032,34 @@ const EditIndicatorForm: React.FC<EditIndicatorFormProps> = ({
             <span className="text-sm text-gray-500">{formData.unit}</span>
           </div>
         </div>
-          <div>
-            <label className="text-sm font-medium">Current Year</label>
-            <input
-              type="number"
-              value={formData.currentYear || ''}
-              onChange={(e) => setFormData(prev => ({ 
-                ...prev, 
-                currentYear: e.target.value ? parseInt(e.target.value) : formData.currentYear 
-              }))}
-              className="w-full mt-1 p-2 border rounded"
-            />
-          </div>
+        <div>
+          <label className="text-sm font-medium">Current Year</label>
+          <input
+            type="number"
+            value={formData.currentYear || ''}
+            onChange={(e) => setFormData(prev => ({ 
+              ...prev, 
+              currentYear: e.target.value ? parseInt(e.target.value) : formData.currentYear 
+            }))}
+            className="w-full mt-1 p-2 border rounded"
+          />
+        </div>
       </div>
 
-
-      
+      {/* Description Field */}
+      <div>
+        <label className="text-sm font-medium">Description</label>
+        <textarea
+          value={formData.description}
+          onChange={e => setFormData(prev => ({
+            ...prev,
+            description: e.target.value
+          }))}
+          className="w-full mt-1 p-2 border rounded"
+          rows={3}
+          placeholder="Enter indicator description"
+        />
+      </div>
 
       <div>
         <label className="text-sm font-medium">Indicator Type</label>
@@ -1063,6 +1076,7 @@ const EditIndicatorForm: React.FC<EditIndicatorFormProps> = ({
         </select>
       </div>
 
+      {/* Data Methodology Section */}
       <div>
         <h3 className="font-semibold mb-4">Data Methodology</h3>
         
@@ -1092,8 +1106,6 @@ const EditIndicatorForm: React.FC<EditIndicatorFormProps> = ({
               rows={3}
             />
           </div>
-
-
 
           <div>
             <div className="flex justify-between items-center mb-2">
@@ -1130,6 +1142,7 @@ const EditIndicatorForm: React.FC<EditIndicatorFormProps> = ({
         </div>
       </div>
 
+      {/* Relevant Policies Section */}
       <div>
         <div className="flex justify-between items-center mb-4">
           <h3 className="font-semibold">Relevant Policies</h3>
@@ -1180,6 +1193,7 @@ const EditIndicatorForm: React.FC<EditIndicatorFormProps> = ({
         ))}
       </div>
 
+      {/* Form Actions */}
       <div className="flex justify-end gap-2">
         <Button variant="outline" onClick={onCancel}>Cancel</Button>
         <Button onClick={handleSubmit}>Save Changes</Button>
