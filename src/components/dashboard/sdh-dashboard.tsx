@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { 
   ArrowLeft, Download, LineChart, Table, ChevronRight, PlusCircle,
   Edit2, Save, Target, Activity, TrendingUp
@@ -469,14 +470,42 @@ const processCSVData = (data: any[]): Indicator[] => {
 };
 
 // DataChart Component
-const DataChart: React.FC<DataChartProps> = ({ data, disaggregationTypes, unit }) => {
+const DataChart: React.FC<DataChartProps> = ({ 
+  data, 
+  disaggregationTypes, 
+  unit 
+}) => {
   const [selectedDisaggregation, setSelectedDisaggregation] = useState(disaggregationTypes[0]);
+  const [selectedValues, setSelectedValues] = useState<string[]>([]);
 
-  // Transform data for selected disaggregation
+  // Get unique values for selected disaggregation
+  const disaggregationValues = Array.from(new Set(
+    data.flatMap(point => 
+      point.disaggregation
+        .filter(d => d.category === selectedDisaggregation)
+        .map(d => d.value)
+    )
+  )).sort();
+
+  // Handle checkbox changes
+  const handleValueToggle = (value: string) => {
+    setSelectedValues(prev => {
+      if (prev.includes(value)) {
+        return prev.filter(v => v !== value);
+      } else {
+        return [...prev, value];
+      }
+    });
+  };
+
+  // Transform data for selected disaggregation and values
   const chartData = data.map(point => {
     const baseData = { year: point.year, total: point.total };
     const disaggregationData = point.disaggregation
-      .filter(d => d.category === selectedDisaggregation)
+      .filter(d => 
+        d.category === selectedDisaggregation && 
+        (selectedValues.length === 0 || selectedValues.includes(d.value))
+      )
       .reduce((acc, d) => ({
         ...acc,
         [d.value]: d.percentage
@@ -488,25 +517,20 @@ const DataChart: React.FC<DataChartProps> = ({ data, disaggregationTypes, unit }
   // Sort data by year
   const sortedChartData = [...chartData].sort((a, b) => parseInt(a.year) - parseInt(b.year));
 
-  // Get unique values for selected disaggregation
-  const disaggregationValues = Array.from(new Set(
-    data.flatMap(point => 
-      point.disaggregation
-        .filter(d => d.category === selectedDisaggregation)
-        .map(d => d.value)
-    )
-  ));
-
   return (
     <div>
-      {disaggregationTypes.length > 0 && (
-        <div className="mb-4">
+      <div className="flex gap-6 mb-4">
+        {/* Category selector */}
+        <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             View by
           </label>
           <select 
             value={selectedDisaggregation}
-            onChange={(e) => setSelectedDisaggregation(e.target.value)}
+            onChange={(e) => {
+              setSelectedDisaggregation(e.target.value);
+              setSelectedValues([]); // Reset selected values when category changes
+            }}
             className="p-2 border rounded w-48"
           >
             {disaggregationTypes.map(type => (
@@ -516,7 +540,44 @@ const DataChart: React.FC<DataChartProps> = ({ data, disaggregationTypes, unit }
             ))}
           </select>
         </div>
-      )}
+
+        {/* Value selector */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Select values to display
+          </label>
+          <div className="space-y-2 max-h-40 overflow-y-auto border rounded p-2">
+            <div className="mb-2">
+              <Checkbox
+                checked={selectedValues.length === disaggregationValues.length}
+                onCheckedChange={(checked) => {
+                  if (checked) {
+                    setSelectedValues(disaggregationValues);
+                  } else {
+                    setSelectedValues([]);
+                  }
+                }}
+                id="select-all"
+              />
+              <label htmlFor="select-all" className="ml-2 text-sm">
+                Select All
+              </label>
+            </div>
+            {disaggregationValues.map((value) => (
+              <div key={value} className="flex items-center">
+                <Checkbox
+                  checked={selectedValues.includes(value)}
+                  onCheckedChange={() => handleValueToggle(value)}
+                  id={value}
+                />
+                <label htmlFor={value} className="ml-2 text-sm">
+                  {formatCategoryName(value)}
+                </label>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
       
       <div className="h-[400px]">
         <ResponsiveContainer>
@@ -553,17 +614,18 @@ const DataChart: React.FC<DataChartProps> = ({ data, disaggregationTypes, unit }
               strokeWidth={2}
               dot={{ r: 4 }}
             />
-            {disaggregationValues.map((value, index) => (
-              <Line
-                key={value}
-                type="monotone"
-                dataKey={value}
-                stroke={colors[(index + 1) % colors.length]}
-                name={formatCategoryName(value)}
-                strokeWidth={2}
-                dot={{ r: 4 }}
-              />
-            ))}
+            {(selectedValues.length === 0 ? disaggregationValues : selectedValues)
+              .map((value, index) => (
+                <Line
+                  key={value}
+                  type="monotone"
+                  dataKey={value}
+                  stroke={colors[(index + 1) % colors.length]}
+                  name={formatCategoryName(value)}
+                  strokeWidth={2}
+                  dot={{ r: 4 }}
+                />
+              ))}
           </RechartsLineChart>
         </ResponsiveContainer>
       </div>
