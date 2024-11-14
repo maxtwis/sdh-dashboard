@@ -2262,7 +2262,7 @@ export default function SDHDashboard() {
   
         {/* Main content area */}
         <div className="flex gap-6">
-          {/* Domain navigation - keep this unchanged */}
+          {/* Domain navigation */}
           <Card className="w-64">
             <CardHeader>
               <CardTitle>Domains & Subdomains</CardTitle>
@@ -2278,7 +2278,8 @@ export default function SDHDashboard() {
                     onClick={() => setSelectedDomain(domain)}
                   >
                     <span className="text-sm">{domain}</span>
-                    <ChevronRight className="w-4 h-4" />
+                    {/* Updated ChevronRight with consistent size */}
+                    <ChevronRight className="w-4 h-4 shrink-0" />
                   </button>
                 ))
               ) : (
