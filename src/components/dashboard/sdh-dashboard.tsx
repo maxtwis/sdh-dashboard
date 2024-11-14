@@ -1183,6 +1183,24 @@ const IndicatorCard: React.FC<IndicatorCardProps> = ({ indicator, onClick }) => 
           </div>
         </div>
 
+        {/* Progress bar section with progress number */}
+                <div className="space-y-2">
+          <div className="flex justify-between items-center mb-1">
+            <span className="text-sm text-gray-600">Progress</span>
+            <span className="text-sm font-medium">{progress.toFixed(1)}%</span>
+          </div>
+          <ProgressSegment 
+            progress={progress}
+            status={indicator.status}
+            indicatorType={indicator.indicatorType}
+          />
+          <div className="flex justify-between text-sm text-gray-500">
+            <span>Baseline</span>
+            <span>{getStatusDisplay()}</span>
+            <span>Target</span>
+          </div>
+        </div>
+
         {/* Progress bar */}
         <div className="space-y-2">
           <ProgressSegment 
