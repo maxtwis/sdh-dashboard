@@ -31,6 +31,85 @@ const colors = [
   '#EF4444', // red
   '#EC4899', // pink
 ];
+const STATUS_FILTERS: StatusFilter[] = [
+  {
+    label: 'All Indicators',
+    value: 'all',
+    color: {
+      bg: 'bg-gray-100',
+      text: 'text-gray-800',
+      ring: 'ring-gray-400',
+    },
+    getCount: (stats) => stats.total,
+    filterFn: () => true,
+  },
+  {
+    label: 'Target Achieved',
+    value: 'target-achieved',
+    color: {
+      bg: 'bg-green-100',
+      text: 'text-green-800',
+      ring: 'ring-green-400',
+    },
+    getCount: (stats) => stats.targetAchieved + stats.targetAchievedButDeclining,
+    filterFn: (indicator) => indicator.status === 'Target Achieved',
+  },
+  {
+    label: 'Improving',
+    value: 'improving',
+    color: {
+      bg: 'bg-blue-100',
+      text: 'text-blue-800',
+      ring: 'ring-blue-400',
+    },
+    getCount: (stats) => stats.improving,
+    filterFn: (indicator) => indicator.status === 'Improving',
+  },
+  {
+    label: 'Getting Worse',
+    value: 'getting-worse',
+    color: {
+      bg: 'bg-red-100',
+      text: 'text-red-800',
+      ring: 'ring-red-400',
+    },
+    getCount: (stats) => stats.needsAttention,
+    filterFn: (indicator) => indicator.status === 'Getting Worse',
+  },
+  {
+    label: 'Little or No Change',
+    value: 'little-change',
+    color: {
+      bg: 'bg-yellow-100',
+      text: 'text-yellow-800',
+      ring: 'ring-yellow-400',
+    },
+    getCount: (stats) => stats.littleChange,
+    filterFn: (indicator) => indicator.status === 'Little or No Change',
+  },
+  {
+    label: 'No Data',
+    value: 'no-data',
+    color: {
+      bg: 'bg-gray-100',
+      text: 'text-gray-600',
+      ring: 'ring-gray-400',
+    },
+    getCount: (stats) => stats.noData,
+    filterFn: (indicator) => indicator.status === 'No Data',
+  },
+  {
+    label: 'Baseline Only',
+    value: 'baseline-only',
+    color: {
+      bg: 'bg-gray-100',
+      text: 'text-gray-600',
+      ring: 'ring-gray-400',
+    },
+    getCount: (stats) => stats.baselineOnly,
+    filterFn: (indicator) => indicator.status === 'Baseline Only',
+  },
+];
 
 // Core interfaces
 interface DisaggregationData {
@@ -119,6 +198,29 @@ interface DatabaseIndicator {
       description: string;
     }>;
   };
+}
+
+interface StatusFilter {
+  label: string;
+  value: string;
+  color: {
+    bg: string;
+    text: string;
+    ring: string;
+  };
+  getCount: (stats: SummaryStats) => number;
+  filterFn: (indicator: Indicator) => boolean;
+}
+
+interface SummaryStats {
+  total: number;
+  targetAchieved: number;
+  targetAchievedButDeclining: number;
+  improving: number;
+  needsAttention: number;
+  littleChange: number;
+  noData: number;
+  baselineOnly: number;
 }
 
 const ProgressSegment: React.FC<ProgressSegmentProps> = ({ progress, status, indicatorType }) => {
@@ -1556,6 +1658,7 @@ export default function SDHDashboard() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState('all');
 
   // Load data on component mount
   useEffect(() => {
@@ -1615,9 +1718,7 @@ export default function SDHDashboard() {
     loadIndicators();
   }, []);
 
-  
-
-  const calculateSummaryStats = () => {
+  const calculateSummaryStats = (): SummaryStats => {
     const total = indicators.length;
     const targetAchieved = indicators.filter(i => 
       i.status === 'Target Achieved' && 
@@ -1628,20 +1729,25 @@ export default function SDHDashboard() {
       (i.indicatorType === 'direct' ? i.current < i.baseline : i.current > i.baseline)
     ).length;
     const improving = indicators.filter(i => i.status === 'Improving').length;
-    const gettingWorse = indicators.filter(i => i.status === 'Getting Worse').length;
+    const needsAttention = indicators.filter(i => i.status === 'Getting Worse').length;
+    const littleChange = indicators.filter(i => i.status === 'Little or No Change').length;
+    const noData = indicators.filter(i => i.status === 'No Data').length;
+    const baselineOnly = indicators.filter(i => i.status === 'Baseline Only').length;
   
     return {
       total,
       targetAchieved,
       targetAchievedButDeclining,
       improving,
-      needsAttention: gettingWorse
+      needsAttention,
+      littleChange,
+      noData,
+      baselineOnly
     };
   };
-  
     
     const stats = calculateSummaryStats();
-  
+    
   
   // File Upload Handler
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -1985,10 +2091,9 @@ export default function SDHDashboard() {
     );
   }
 
-  // Main dashboard view
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Updated blue header with correct color */}
+      {/* Blue header - keep this unchanged */}
       <div className="bg-[#1A56DB] text-white px-4 py-3 flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <div className="h-8 w-8 bg-white rounded flex items-center justify-center">
@@ -2008,146 +2113,145 @@ export default function SDHDashboard() {
           </Button>
         </div>
       </div>
-
-      
+  
       <div className="p-6 pt-8">
-      {isAdmin && (
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Import Data</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-4">
-              <input
-                type="file"
-                accept=".csv"
-                onChange={handleFileUpload}
-                className="block w-full text-sm text-gray-500
-                  file:mr-4 file:py-2 file:px-4
-                  file:rounded-lg file:border-0
-                  file:text-sm file:font-semibold
-                  file:bg-blue-50 file:text-blue-700
-                  hover:file:bg-blue-100"
-              />
-              {fileName && (
-                <span className="text-sm text-gray-500">
-                  File loaded: {fileName}
-                </span>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-
-      {/* Summary statistics */}      
-      <div className="grid grid-cols-4 gap-6 mb-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm text-gray-600">Total Indicators</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.total}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm text-gray-600">Target Achieved</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col">
-              <div className="text-2xl font-bold text-green-600">
-                {stats.targetAchieved + stats.targetAchievedButDeclining}
+        {/* Admin import section - keep this unchanged */}
+        {isAdmin && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle>Import Data</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-4">
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={handleFileUpload}
+                  className="block w-full text-sm text-gray-500
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded-lg file:border-0
+                    file:text-sm file:font-semibold
+                    file:bg-blue-50 file:text-blue-700
+                    hover:file:bg-blue-100"
+                />
+                {fileName && (
+                  <span className="text-sm text-gray-500">
+                    File loaded: {fileName}
+                  </span>
+                )}
               </div>
-              {stats.targetAchievedButDeclining > 0 && (
-                <div className="text-xs text-amber-600 mt-1">
-                  ({stats.targetAchievedButDeclining} declining from baseline)
+            </CardContent>
+          </Card>
+        )}
+   
+        {/* Summary statistics */}      
+        <div className="grid grid-cols-4 gap-6 mb-6">
+          {STATUS_FILTERS.map((filter) => (
+            <Card 
+              key={filter.value}
+              className={`cursor-pointer transition-all hover:bg-gray-50 ${
+                statusFilter === filter.value ? `ring-2 ${filter.color.ring}` : ''
+              }`}
+              onClick={() => setStatusFilter(filter.value)}
+            >
+              <CardHeader>
+                <CardTitle className={`text-sm ${filter.color.text}`}>
+                  {filter.label}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className={`text-2xl font-bold ${filter.color.text}`}>
+                  {filter.getCount(stats)}
                 </div>
+                {filter.value === 'target-achieved' && stats.targetAchievedButDeclining > 0 && (
+                  <div className="text-xs text-amber-600 mt-1">
+                    ({stats.targetAchievedButDeclining} declining from baseline)
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+  
+        {/* Filter status indicator */}
+        {statusFilter !== 'all' && (
+          <div className="mb-4 flex items-center gap-2">
+            <div className="text-sm text-gray-600">
+              Filtering by: 
+              <span className="font-medium ml-1">
+                {STATUS_FILTERS.find(f => f.value === statusFilter)?.label}
+              </span>
+            </div>
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => setStatusFilter('all')}
+            >
+              Clear Filter
+            </Button>
+          </div>
+        )}
+  
+        {/* Main content area */}
+        <div className="flex gap-6">
+          {/* Domain navigation - keep this unchanged */}
+          <Card className="w-64">
+            <CardHeader>
+              <CardTitle>Domains & Subdomains</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {indicators.length > 0 ? (
+                Array.from(new Set(indicators.map(i => i.domain))).map(domain => (
+                  <button
+                    key={domain}
+                    className={`flex items-center justify-between w-full p-2 text-left rounded-lg hover:bg-gray-100 ${
+                      selectedDomain === domain ? 'bg-blue-50 text-blue-700' : ''
+                    }`}
+                    onClick={() => setSelectedDomain(domain)}
+                  >
+                    <span className="text-sm">{domain}</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                ))
+              ) : (
+                <p className="text-sm text-gray-500">No data loaded</p>
               )}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm text-gray-600">Improving</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">
-              {stats.improving}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm text-gray-600">Needs Attention</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">
-              {stats.needsAttention}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Main content area */}
-      <div className="flex gap-6">
-        {/* Domain navigation */}
-        <Card className="w-64">
-          <CardHeader>
-            <CardTitle>Domains & Subdomains</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {indicators.length > 0 ? (
-              Array.from(new Set(indicators.map(i => i.domain))).map(domain => (
-                <button
-                  key={domain}
-                  className={`flex items-center justify-between w-full p-2 text-left rounded-lg hover:bg-gray-100 ${
-                    selectedDomain === domain ? 'bg-blue-50 text-blue-700' : ''
-                  }`}
-                  onClick={() => setSelectedDomain(domain)}
-                >
-                  <span className="text-sm">{domain}</span>
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              ))
+            </CardContent>
+          </Card>
+  
+          {/* Indicator cards */}
+          <div className="flex-1">
+            {selectedDomain && indicators.length > 0 ? (
+              <>
+                <h2 className="text-xl font-semibold mb-4">{selectedDomain}</h2>
+                {indicators
+                  .filter(i => i.domain === selectedDomain)
+                  .filter(i => {
+                    const activeFilter = STATUS_FILTERS.find(f => f.value === statusFilter);
+                    return activeFilter ? activeFilter.filterFn(i) : true;
+                  })
+                  .map(indicator => (
+                    <IndicatorCard
+                      key={indicator.id}
+                      indicator={indicator}
+                      onClick={() => {
+                        setSelectedIndicator(indicator);
+                        setView('detail');
+                      }}
+                    />
+                  ))}
+              </>
             ) : (
-              <p className="text-sm text-gray-500">No data loaded</p>
+              <div className="text-center py-8 text-gray-500">
+                {indicators.length === 0 ? 
+                  'Please import data to view indicators' : 
+                  'Select a domain to view indicators'
+                }
+              </div>
             )}
-          </CardContent>
-        </Card>
-
-        {/* Indicator cards */}
-        <div className="flex-1">
-          {selectedDomain && indicators.length > 0 ? (
-            <>
-              <h2 className="text-xl font-semibold mb-4">{selectedDomain}</h2>
-              {indicators
-                .filter(i => i.domain === selectedDomain)
-                .map(indicator => (
-                  <IndicatorCard
-                    key={indicator.id}
-                    indicator={indicator}
-                    onClick={() => {
-                      setSelectedIndicator(indicator);
-                      setView('detail');
-                    }}
-                  />
-                ))}
-            </>
-          ) : (
-            <div className="text-center py-8 text-gray-500">
-              {indicators.length === 0 ? 
-                'Please import data to view indicators' : 
-                'Select a domain to view indicators'
-              }
-            </div>
-          )}
+          </div>
         </div>
       </div>
     </div>
-  </div>
   );
-}
+} 
