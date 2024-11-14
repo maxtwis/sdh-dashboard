@@ -1201,20 +1201,6 @@ const IndicatorCard: React.FC<IndicatorCardProps> = ({ indicator, onClick }) => 
           </div>
         </div>
 
-        {/* Progress bar */}
-        <div className="space-y-2">
-          <ProgressSegment 
-            progress={progress}
-            status={indicator.status}
-            indicatorType={indicator.indicatorType}
-          />
-          <div className="flex justify-between text-sm text-gray-500">
-            <span>Baseline</span>
-            <span>{getStatusDisplay()}</span>
-            <span>Target</span>
-          </div>
-        </div>
-
         {/* Warning message */}
         {showWarning && (
           <div className="mt-4 text-sm text-amber-600 bg-amber-50 px-3 py-2 rounded-lg flex items-center gap-2">
