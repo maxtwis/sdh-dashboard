@@ -300,9 +300,19 @@ class UnitSystem {
 
     let progress: number;
     if (indicatorType === 'direct') {
+      // For direct indicators (higher is better)
       progress = ((current - baseline) / (target - baseline)) * 100;
     } else {
-      progress = ((baseline - current) / (baseline - target)) * 100;
+      // For reverse indicators (lower is better)
+      // If we've reached or exceeded target, progress should be 100%
+      if (current <= target) {
+        progress = 100;
+      } else if (current >= baseline) {
+        progress = 0;
+      } else {
+        // Calculate progress for values between baseline and target
+        progress = ((baseline - current) / (baseline - target)) * 100;
+      }
     }
 
     return Math.min(Math.max(progress, 0), 100);
@@ -324,6 +334,8 @@ class UnitSystem {
       return 'No Data';
     }
 
+    // For reverse indicators, we've achieved target if current <= target
+    // For direct indicators, we've achieved target if current >= target
     const isTarget = indicatorType === 'direct' ? 
       current >= target : 
       current <= target;
@@ -332,6 +344,8 @@ class UnitSystem {
       return 'Target Achieved';
     }
 
+    // For reverse indicators, we're improving if current < baseline
+    // For direct indicators, we're improving if current > baseline
     const isImproving = indicatorType === 'direct' ? 
       current > baseline : 
       current < baseline;
@@ -361,7 +375,7 @@ const formatCategoryName = (category: string): string =>
     word.charAt(0).toUpperCase() + word.slice(1)
   ).join(' ');
 
-  
+
 // CSV Export Function
 const handleDownloadCSV = (indicator: Indicator) => {
   if (!indicator?.timeSeriesData?.length) return;
