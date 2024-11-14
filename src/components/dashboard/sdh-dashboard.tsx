@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { 
   ArrowLeft, Download, LineChart, Table, ChevronRight, PlusCircle,
-  Edit2, Save, Target, Activity, TrendingUp
+  Edit2, Save, Target, Activity, TrendingUp, TrendingDown, 
+  AlertTriangle, 
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -1010,22 +1011,33 @@ const IndicatorOverview: React.FC<IndicatorOverviewProps> = ({ indicator }) => {
   );
 };
 
-// IndicatorCard Component
 const IndicatorCard: React.FC<IndicatorCardProps> = ({ indicator, onClick }) => {
-  // Verify status based on available data
-  const yearsWithData = indicator.timeSeriesData?.length || 0;
-  const displayStatus = yearsWithData <= 1 ? 'Baseline Only' : indicator.status;
-  
+  // Check if we're declining from baseline despite meeting target
+  const isTargetAchieved = indicator.indicatorType === 'direct' 
+    ? indicator.current >= indicator.target 
+    : indicator.current <= indicator.target;
+    
+  const isDecliningFromBaseline = indicator.indicatorType === 'direct'
+    ? indicator.current < indicator.baseline
+    : indicator.current > indicator.baseline;
+
+  const showWarning = isTargetAchieved && isDecliningFromBaseline;
+
+  // Calculate progress for display
   const progress = UnitSystem.calculateProgress(
     indicator.current,
     indicator.baseline,
     indicator.target,
     indicator.indicatorType
   );
-  
+
   const getStatusDisplay = () => {
-    if (yearsWithData <= 1) {
+    if (indicator.timeSeriesData.length <= 1) {
       return 'Baseline Data Only';
+    }
+    
+    if (indicator.status === 'Target Achieved' && isDecliningFromBaseline) {
+      return 'Target Achieved but Declining';
     }
     
     if (indicator.status === 'Improving') {
@@ -1039,22 +1051,24 @@ const IndicatorCard: React.FC<IndicatorCardProps> = ({ indicator, onClick }) => 
         return 'Near Target';
       }
     }
-    return displayStatus;
+    return indicator.status;
   };
 
   const getStatusStyles = () => {
-    if (yearsWithData <= 1) {
+    if (indicator.timeSeriesData.length <= 1) {
       return {
         container: 'bg-gray-100 text-gray-800 border border-gray-200',
         dot: 'bg-gray-500'
       };
     }
 
-    switch (displayStatus) {
+    switch (indicator.status) {
       case 'Target Achieved':
         return {
-          container: 'bg-green-100 text-green-800 border border-green-200',
-          dot: 'bg-green-500'
+          container: isDecliningFromBaseline 
+            ? 'bg-amber-100 text-amber-800 border border-amber-200'
+            : 'bg-green-100 text-green-800 border border-green-200',
+          dot: isDecliningFromBaseline ? 'bg-amber-500' : 'bg-green-500'
         };
       case 'Improving':
         return {
@@ -1079,6 +1093,11 @@ const IndicatorCard: React.FC<IndicatorCardProps> = ({ indicator, onClick }) => 
     }
   };
 
+  const formatValue = (value: number): string => {
+    if (isNaN(value)) return 'No data';
+    return value.toFixed(1);
+  };
+
   const statusStyles = getStatusStyles();
 
   return (
@@ -1087,6 +1106,7 @@ const IndicatorCard: React.FC<IndicatorCardProps> = ({ indicator, onClick }) => 
       onClick={onClick}
     >
       <CardContent className="p-4">
+        {/* Header with ID and domain */}
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <span className="text-gray-500 text-sm">{indicator.id}</span>
@@ -1094,54 +1114,80 @@ const IndicatorCard: React.FC<IndicatorCardProps> = ({ indicator, onClick }) => 
               {indicator.subdomain}
             </span>
           </div>
-          <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium gap-1 ${statusStyles.container}`}>
-            <span className={`w-2 h-2 rounded-full ${statusStyles.dot}`} />
-            {getStatusDisplay()}
-          </div>
-        </div>
-        
-        <h3 className="text-lg font-semibold mb-4">{indicator.title}</h3>
-        
-        <div className="grid grid-cols-3 gap-8 mb-4">
-          <div>
-            <div className="flex items-center gap-2 text-blue-600">
-              <span className="text-sm">Target {indicator.indicatorType === 'direct' ? '↑' : '↓'}</span>
-            </div>
-            <div className="flex items-baseline gap-1">
-              <span className="text-lg font-semibold">
-                {formatValue(indicator.target, indicator.unit)}
-              </span>
-              <span className="text-sm text-gray-500">{indicator.unit}</span>
-            </div>
-          </div>
-          <div>
-            <div className="flex items-center gap-2 text-gray-600">
-              <span className="text-sm">Current ({indicator.currentYear || 'N/A'})</span>
-            </div>
-            <div className="flex items-baseline gap-1">
-              <span className="text-lg font-semibold">
-                {formatValue(indicator.current, indicator.unit)}
-              </span>
-              <span className="text-sm text-gray-500">{indicator.unit}</span>
-            </div>
-          </div>
-          <div>
-            <div className="flex items-center gap-2 text-gray-600">
-              <span className="text-sm">Progress</span>
-            </div>
-            <div className="flex items-baseline gap-1">
-              <span className="text-lg font-semibold">
-                {yearsWithData <= 1 ? '0.0' : progress.toFixed(1)}
-              </span>
-              <span className="text-sm text-gray-500">%</span>
+          <div className="flex items-center gap-2">
+            {showWarning && (
+              <div className="text-amber-600 bg-amber-50 px-2 py-1 rounded-full text-sm flex items-center gap-1">
+                <TrendingDown className="w-4 h-4" />
+                <span>Declining from Baseline</span>
+              </div>
+            )}
+            <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium gap-1 ${statusStyles.container}`}>
+              <span className={`w-2 h-2 rounded-full ${statusStyles.dot}`} />
+              {getStatusDisplay()}
             </div>
           </div>
         </div>
 
+        <h3 className="text-lg font-semibold mb-4">{indicator.title}</h3>
+
+        {/* Values grid */}
+        <div className="grid grid-cols-3 gap-8 mb-4">
+          {/* Target */}
+          <div>
+            <div className="flex items-center gap-2 text-blue-600">
+              <div className="p-2 bg-blue-50 rounded-full">
+                <Target className="w-4 h-4" />
+              </div>
+              <span className="text-sm">
+                Target {indicator.indicatorType === 'direct' ? '↑' : '↓'}
+              </span>
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className="text-lg font-semibold">
+                {formatValue(indicator.target)}
+              </span>
+              <span className="text-sm text-gray-500">{indicator.unit}</span>
+            </div>
+          </div>
+
+          {/* Current */}
+          <div>
+            <div className="flex items-center gap-2 text-gray-600">
+              <div className="p-2 bg-gray-50 rounded-full">
+                <Activity className="w-4 h-4" />
+              </div>
+              <span className="text-sm">Current ({indicator.currentYear || 'N/A'})</span>
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className="text-lg font-semibold">
+                {formatValue(indicator.current)}
+              </span>
+              <span className="text-sm text-gray-500">{indicator.unit}</span>
+            </div>
+          </div>
+
+          {/* Baseline */}
+          <div>
+            <div className={`flex items-center gap-2 ${showWarning ? 'text-amber-600' : 'text-gray-600'}`}>
+              <div className={`p-2 rounded-full ${showWarning ? 'bg-amber-50' : 'bg-gray-50'}`}>
+                <TrendingUp className="w-4 h-4" />
+              </div>
+              <span className="text-sm">Baseline</span>
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className={`text-lg font-semibold ${showWarning ? 'text-amber-600' : ''}`}>
+                {formatValue(indicator.baseline)}
+              </span>
+              <span className="text-sm text-gray-500">{indicator.unit}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Progress bar */}
         <div className="space-y-2">
           <ProgressSegment 
-            progress={yearsWithData <= 1 ? 0 : progress}
-            status={displayStatus}
+            progress={progress}
+            status={indicator.status}
             indicatorType={indicator.indicatorType}
           />
           <div className="flex justify-between text-sm text-gray-500">
@@ -1151,6 +1197,18 @@ const IndicatorCard: React.FC<IndicatorCardProps> = ({ indicator, onClick }) => 
           </div>
         </div>
 
+        {/* Warning message */}
+        {showWarning && (
+          <div className="mt-4 text-sm text-amber-600 bg-amber-50 px-3 py-2 rounded-lg flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4" />
+            <span>
+              While target is achieved, performance has declined from baseline value of{' '}
+              {formatValue(indicator.baseline)} {indicator.unit}
+            </span>
+          </div>
+        )}
+
+        {/* Disaggregation tags */}
         {indicator.disaggregationTypes.length > 0 && (
           <div className="mt-4 flex flex-wrap gap-2">
             {indicator.disaggregationTypes.map(type => (
@@ -1161,6 +1219,7 @@ const IndicatorCard: React.FC<IndicatorCardProps> = ({ indicator, onClick }) => 
           </div>
         )}
 
+        {/* Warning badge for general warnings */}
         {indicator.warning && (
           <div className="mt-4 text-sm text-amber-600 bg-amber-50 px-3 py-2 rounded-lg">
             {indicator.warning}
