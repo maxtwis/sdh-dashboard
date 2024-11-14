@@ -435,49 +435,50 @@ class UnitSystem {
     target: number,
     indicatorType: 'direct' | 'reverse',
     numberOfYears: number
-  ): Indicator['status'] {
-    // Always check number of years first
+): Indicator['status'] {
+    // ALWAYS check number of years first
     if (numberOfYears <= 1) {
-      return 'Baseline Only';
+        return 'Baseline Only';
     }
 
+    // Then check for missing data
     if (isNaN(current) || isNaN(baseline) || isNaN(target)) {
-      return 'No Data';
+        return 'No Data';
     }
 
     // For direct indicators, check if current >= target
     // For reverse indicators, check if current <= target
     const isTarget = indicatorType === 'direct' ? 
-      current >= target : 
-      current <= target;
+        current >= target : 
+        current <= target;
 
     if (isTarget) {
-      // Even if we've hit target, check if we're declining from baseline
-      const isDecline = indicatorType === 'direct' ?
-        current < baseline :
-        current > baseline;
+        // Even if we've hit target, check if we're declining from baseline
+        const isDecline = indicatorType === 'direct' ?
+            current < baseline :
+            current > baseline;
 
-      if (isDecline) {
-        return 'Getting Worse';
-      }
-      return 'Target Achieved';
+        if (isDecline) {
+            return 'Getting Worse';
+        }
+        return 'Target Achieved';
     }
 
     // For direct indicators, check if current >= baseline
     // For reverse indicators, check if current <= baseline
     const isImproving = indicatorType === 'direct' ? 
-      current >= baseline : 
-      current <= baseline;
+        current >= baseline : 
+        current <= baseline;
 
     if (!isImproving) {
-      return 'Getting Worse';
+        return 'Getting Worse';
     }
 
     const progress = this.calculateProgress(current, baseline, target, indicatorType);
     if (progress >= 25) {
-      return 'Improving';
+        return 'Improving';
     } else {
-      return 'Little or No Change';
+        return 'Little or No Change';
     }
   }
 }
@@ -614,16 +615,16 @@ const processCSVData = (data: any[]): Indicator[] => {
           .filter(Boolean)
       ));
 
-      // Get all years for this indicator where we have data
-      const yearsWithData = new Set(
+      // Get all years for this indicator where we have data with valid totals
+      const yearsWithData = Array.from(new Set(
         data
           .filter(r => 
             r['Indicator ID'] === id && 
-            r['Total'] && // Check if Total exists
+            r['Total'] && 
             !isNaN(parseFloat(r['Total']))
           )
           .map(r => r['Year'])
-      );
+      )).sort((a, b) => parseInt(a) - parseInt(b)); // Sort years numerically
       
       // Parse numeric values
       const current = row['Current'] ? parseFloat(row['Current']) : NaN;
@@ -631,34 +632,27 @@ const processCSVData = (data: any[]): Indicator[] => {
       const target = row['Target'] ? parseFloat(row['Target']) : NaN;
       const year = row['Year'] ? parseInt(row['Year']) : NaN;
 
-      // Determine indicator status
-      let status: Indicator['status'];
-      if (yearsWithData.size <= 1) {
-        status = 'Baseline Only';
-      } else if (isNaN(current) || isNaN(baseline) || isNaN(target)) {
-        status = 'No Data';
-      } else {
-        status = UnitSystem.calculateStatus(
-          current,
-          baseline,
-          target,
-          (row['IndicatorType']?.toLowerCase() || 'direct') as 'direct' | 'reverse',
-          yearsWithData.size
-        );
-      }
+      // Process methodology and data sources
+      const methodology = row['Methodology'] || '';
+      const dataSources = row['DataSources'] ? 
+        row['DataSources'].split(';').map((s: string) => s.trim()) : 
+        [];
 
       // Create warning message if needed
       let warning = '';
       if (isNaN(current)) warning = 'Missing current value';
       else if (isNaN(baseline)) warning = 'Missing baseline value';
       else if (isNaN(target)) warning = 'Missing target value';
-      else if (yearsWithData.size <= 1) warning = 'Only baseline data available';
+      else if (yearsWithData.length <= 1) warning = 'Only baseline data available';
 
-      // Process methodology and data sources
-      const methodology = row['Methodology'] || '';
-      const dataSources = row['DataSources'] ? 
-        row['DataSources'].split(';').map((s: string) => s.trim()) : 
-        [];
+      // Determine status
+      const status = UnitSystem.calculateStatus(
+        current,
+        baseline,
+        target,
+        (row['IndicatorType']?.toLowerCase() || 'direct') as 'direct' | 'reverse',
+        yearsWithData.length
+      );
 
       // Create initial indicator object
       processedData[id] = {
@@ -741,12 +735,19 @@ const processCSVData = (data: any[]): Indicator[] => {
       );
     });
 
-    // Additional validation
-    if (indicator.timeSeriesData.length === 0) {
+    // Sort time series data by year
+    indicator.timeSeriesData.sort((a, b) => 
+      parseInt(a.year) - parseInt(b.year)
+    );
+
+    // Additional validation and status updates
+    const yearsWithData = indicator.timeSeriesData.length;
+
+    if (yearsWithData === 0) {
       indicator.warning = 'No time series data available';
       indicator.status = 'No Data';
     }
-    if (indicator.timeSeriesData.length <= 1) {
+    if (yearsWithData <= 1) {
       indicator.status = 'Baseline Only';
     }
 
@@ -756,6 +757,15 @@ const processCSVData = (data: any[]): Indicator[] => {
       indicator.current = latestData.total;
       indicator.currentYear = parseInt(latestData.year);
     }
+
+    // Revalidate status after all processing
+    indicator.status = UnitSystem.calculateStatus(
+      indicator.current,
+      indicator.baseline,
+      indicator.target,
+      indicator.indicatorType,
+      yearsWithData
+    );
   });
 
   return Object.values(processedData);
