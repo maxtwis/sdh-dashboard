@@ -1615,6 +1615,34 @@ export default function SDHDashboard() {
     loadIndicators();
   }, []);
 
+  
+
+  const calculateSummaryStats = () => {
+    const total = indicators.length;
+    const targetAchieved = indicators.filter(i => 
+      i.status === 'Target Achieved' && 
+      (i.indicatorType === 'direct' ? i.current >= i.baseline : i.current <= i.baseline)
+    ).length;
+    const targetAchievedButDeclining = indicators.filter(i => 
+      i.status === 'Target Achieved' && 
+      (i.indicatorType === 'direct' ? i.current < i.baseline : i.current > i.baseline)
+    ).length;
+    const improving = indicators.filter(i => i.status === 'Improving').length;
+    const gettingWorse = indicators.filter(i => i.status === 'Getting Worse').length;
+  
+    return {
+      total,
+      targetAchieved,
+      targetAchievedButDeclining,
+      improving,
+      needsAttention: gettingWorse
+    };
+  };
+  
+    
+    const stats = calculateSummaryStats();
+  
+  
   // File Upload Handler
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -1741,7 +1769,7 @@ export default function SDHDashboard() {
           relevantPolicies: indicatorWithYear.details.relevantPolicies
         }
       };
-    
+          
       // Update in Supabase
       const { error } = await supabase
         .from('indicators')
@@ -2011,43 +2039,54 @@ export default function SDHDashboard() {
         </Card>
       )}
 
-      {/* Summary statistics */}
+
+      {/* Summary statistics */}      
       <div className="grid grid-cols-4 gap-6 mb-6">
         <Card>
           <CardHeader>
             <CardTitle className="text-sm text-gray-600">Total Indicators</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{indicators.length}</div>
+            <div className="text-2xl font-bold">{stats.total}</div>
           </CardContent>
         </Card>
+
         <Card>
           <CardHeader>
             <CardTitle className="text-sm text-gray-600">Target Achieved</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {indicators.filter(i => i.status === 'Target Achieved').length}
+            <div className="flex flex-col">
+              <div className="text-2xl font-bold text-green-600">
+                {stats.targetAchieved + stats.targetAchievedButDeclining}
+              </div>
+              {stats.targetAchievedButDeclining > 0 && (
+                <div className="text-xs text-amber-600 mt-1">
+                  ({stats.targetAchievedButDeclining} declining from baseline)
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
+
         <Card>
           <CardHeader>
             <CardTitle className="text-sm text-gray-600">Improving</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">
-              {indicators.filter(i => i.status === 'Improving').length}
+              {stats.improving}
             </div>
           </CardContent>
         </Card>
+
         <Card>
           <CardHeader>
             <CardTitle className="text-sm text-gray-600">Needs Attention</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">
-              {indicators.filter(i => i.status === 'Getting Worse').length}
+              {stats.needsAttention}
             </div>
           </CardContent>
         </Card>
