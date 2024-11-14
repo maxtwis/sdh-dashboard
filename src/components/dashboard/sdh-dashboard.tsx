@@ -277,17 +277,6 @@ const mergeIndicatorData = async (
 
 // Unit System
 class UnitSystem {
-  static isPercentage(unit: string): boolean {
-    return unit === '%' || unit.toLowerCase().includes('percent');
-  }
-
-  static formatValue(value: number, precision: number = 1): string {
-    if (isNaN(value)) {
-      return 'No data';
-    }
-    return value.toFixed(precision);
-  }
-
   static calculateProgress(
     current: number, 
     baseline: number, 
@@ -298,24 +287,33 @@ class UnitSystem {
       return 0;
     }
 
-    let progress: number;
+    // For direct indicators (higher is better)
     if (indicatorType === 'direct') {
-      // For direct indicators (higher is better)
-      progress = ((current - baseline) / (target - baseline)) * 100;
-    } else {
-      // For reverse indicators (lower is better)
-      // If we've reached or exceeded target, progress should be 100%
-      if (current <= target) {
-        progress = 100;
-      } else if (current >= baseline) {
-        progress = 0;
-      } else {
-        // Calculate progress for values between baseline and target
-        progress = ((baseline - current) / (baseline - target)) * 100;
+      // If we've reached or exceeded target
+      if (current >= target) {
+        return 100;
       }
+      // If we've fallen below baseline
+      if (current < baseline) {
+        // Calculate negative progress
+        return Math.max(0, ((current - baseline) / (target - baseline)) * 100);
+      }
+      // Normal case - between baseline and target
+      return ((current - baseline) / (target - baseline)) * 100;
+    } 
+    // For reverse indicators (lower is better)
+    else {
+      // If we've reached or exceeded target
+      if (current <= target) {
+        return 100;
+      }
+      // If we've gotten worse than baseline
+      if (current > baseline) {
+        return 0;
+      }
+      // Normal case - between baseline and target
+      return ((baseline - current) / (baseline - target)) * 100;
     }
-
-    return Math.min(Math.max(progress, 0), 100);
   }
 
   static calculateStatus(
@@ -334,8 +332,6 @@ class UnitSystem {
       return 'No Data';
     }
 
-    // For reverse indicators, we've achieved target if current <= target
-    // For direct indicators, we've achieved target if current >= target
     const isTarget = indicatorType === 'direct' ? 
       current >= target : 
       current <= target;
@@ -344,18 +340,17 @@ class UnitSystem {
       return 'Target Achieved';
     }
 
-    // For reverse indicators, we're improving if current < baseline
-    // For direct indicators, we're improving if current > baseline
     const isImproving = indicatorType === 'direct' ? 
-      current > baseline : 
-      current < baseline;
+      current >= baseline : // Changed from > to >= to consider maintaining value as not getting worse
+      current <= baseline;  // Changed from < to <= to consider maintaining value as not getting worse
+
+    if (!isImproving) {
+      return 'Getting Worse';
+    }
 
     const progress = this.calculateProgress(current, baseline, target, indicatorType);
-
     if (progress >= 25) {
       return 'Improving';
-    } else if (!isImproving) {
-      return 'Getting Worse';
     } else {
       return 'Little or No Change';
     }
