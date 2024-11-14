@@ -315,26 +315,27 @@ class UnitSystem {
     indicatorType: 'direct' | 'reverse',
     numberOfYears: number
   ): Indicator['status'] {
-    // First check number of years
+    // Always check number of years first
     if (numberOfYears <= 1) {
       return 'Baseline Only';
     }
-  
+
     if (isNaN(current) || isNaN(baseline) || isNaN(target)) {
       return 'No Data';
     }
-  
-    const isTarget = indicatorType === 'direct' ? 
-    current >= target : 
-    current <= target;
 
-  if (isTarget) {
-    return 'Target Achieved';
-  }
-  const isImproving = indicatorType === 'direct' ? 
-    current > baseline : 
-    current < baseline;
-  
+    const isTarget = indicatorType === 'direct' ? 
+      current >= target : 
+      current <= target;
+
+    if (isTarget) {
+      return 'Target Achieved';
+    }
+
+    const isImproving = indicatorType === 'direct' ? 
+      current > baseline : 
+      current < baseline;
+
     const progress = this.calculateProgress(current, baseline, target, indicatorType);
 
     if (progress >= 25) {
@@ -345,14 +346,14 @@ class UnitSystem {
       return 'Little or No Change';
     }
   }
-} 
+}
 
 // Helper Functions
 const formatValue = (value: number | null | undefined, unit: string): string => {
   if (value === null || value === undefined || isNaN(value)) {
     return 'No data';
   }
-  return UnitSystem.formatValue(value);
+  return value.toFixed(1);
 };
 
 const formatCategoryName = (category: string): string => 
@@ -360,6 +361,7 @@ const formatCategoryName = (category: string): string =>
     word.charAt(0).toUpperCase() + word.slice(1)
   ).join(' ');
 
+  
 // CSV Export Function
 const handleDownloadCSV = (indicator: Indicator) => {
   if (!indicator?.timeSeriesData?.length) return;
@@ -979,6 +981,10 @@ const IndicatorOverview: React.FC<IndicatorOverviewProps> = ({ indicator }) => {
 
 // IndicatorCard Component
 const IndicatorCard: React.FC<IndicatorCardProps> = ({ indicator, onClick }) => {
+  // Verify status based on available data
+  const yearsWithData = indicator.timeSeriesData?.length || 0;
+  const displayStatus = yearsWithData <= 1 ? 'Baseline Only' : indicator.status;
+  
   const progress = UnitSystem.calculateProgress(
     indicator.current,
     indicator.baseline,
@@ -987,7 +993,7 @@ const IndicatorCard: React.FC<IndicatorCardProps> = ({ indicator, onClick }) => 
   );
   
   const getStatusDisplay = () => {
-    if (indicator.status === 'Baseline Only') {
+    if (yearsWithData <= 1) {
       return 'Baseline Data Only';
     }
     
@@ -1002,8 +1008,47 @@ const IndicatorCard: React.FC<IndicatorCardProps> = ({ indicator, onClick }) => 
         return 'Near Target';
       }
     }
-    return indicator.status;
+    return displayStatus;
   };
+
+  const getStatusStyles = () => {
+    if (yearsWithData <= 1) {
+      return {
+        container: 'bg-gray-100 text-gray-800 border border-gray-200',
+        dot: 'bg-gray-500'
+      };
+    }
+
+    switch (displayStatus) {
+      case 'Target Achieved':
+        return {
+          container: 'bg-green-100 text-green-800 border border-green-200',
+          dot: 'bg-green-500'
+        };
+      case 'Improving':
+        return {
+          container: 'bg-blue-100 text-blue-800 border border-blue-200',
+          dot: 'bg-blue-500'
+        };
+      case 'Getting Worse':
+        return {
+          container: 'bg-red-100 text-red-800 border border-red-200',
+          dot: 'bg-red-500'
+        };
+      case 'No Data':
+        return {
+          container: 'bg-gray-100 text-gray-800 border border-gray-200',
+          dot: 'bg-gray-500'
+        };
+      default:
+        return {
+          container: 'bg-yellow-100 text-yellow-800 border border-yellow-200',
+          dot: 'bg-yellow-500'
+        };
+    }
+  };
+
+  const statusStyles = getStatusStyles();
 
   return (
     <Card 
@@ -1018,28 +1063,8 @@ const IndicatorCard: React.FC<IndicatorCardProps> = ({ indicator, onClick }) => 
               {indicator.subdomain}
             </span>
           </div>
-          <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium gap-1 ${
-            isNaN(indicator.current) || isNaN(indicator.baseline) || isNaN(indicator.target)
-              ? 'bg-gray-100 text-gray-800 border border-gray-200'
-              : indicator.status === 'Target Achieved'
-              ? 'bg-green-100 text-green-800 border border-green-200'
-              : indicator.status === 'Improving'
-              ? 'bg-blue-100 text-blue-800 border border-blue-200'
-              : indicator.status === 'Getting Worse'
-              ? 'bg-red-100 text-red-800 border border-red-200'
-              : 'bg-yellow-100 text-yellow-800 border border-yellow-200'
-          }`}>
-            <span className={`w-2 h-2 rounded-full ${
-              isNaN(indicator.current) || isNaN(indicator.baseline) || isNaN(indicator.target)
-                ? 'bg-gray-500'
-                : indicator.status === 'Target Achieved'
-                ? 'bg-green-500'
-                : indicator.status === 'Improving'
-                ? 'bg-blue-500'
-                : indicator.status === 'Getting Worse'
-                ? 'bg-red-500'
-                : 'bg-yellow-500'
-            }`} />
+          <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium gap-1 ${statusStyles.container}`}>
+            <span className={`w-2 h-2 rounded-full ${statusStyles.dot}`} />
             {getStatusDisplay()}
           </div>
         </div>
@@ -1058,7 +1083,7 @@ const IndicatorCard: React.FC<IndicatorCardProps> = ({ indicator, onClick }) => 
               <span className="text-sm text-gray-500">{indicator.unit}</span>
             </div>
           </div>
-            <div>
+          <div>
             <div className="flex items-center gap-2 text-gray-600">
               <span className="text-sm">Current ({indicator.currentYear || 'N/A'})</span>
             </div>
@@ -1075,7 +1100,7 @@ const IndicatorCard: React.FC<IndicatorCardProps> = ({ indicator, onClick }) => 
             </div>
             <div className="flex items-baseline gap-1">
               <span className="text-lg font-semibold">
-                {progress.toFixed(1)}
+                {yearsWithData <= 1 ? '0.0' : progress.toFixed(1)}
               </span>
               <span className="text-sm text-gray-500">%</span>
             </div>
@@ -1084,8 +1109,8 @@ const IndicatorCard: React.FC<IndicatorCardProps> = ({ indicator, onClick }) => 
 
         <div className="space-y-2">
           <ProgressSegment 
-            progress={progress}
-            status={indicator.status}
+            progress={yearsWithData <= 1 ? 0 : progress}
+            status={displayStatus}
             indicatorType={indicator.indicatorType}
           />
           <div className="flex justify-between text-sm text-gray-500">
@@ -1102,6 +1127,12 @@ const IndicatorCard: React.FC<IndicatorCardProps> = ({ indicator, onClick }) => 
                 {formatCategoryName(type)}
               </span>
             ))}
+          </div>
+        )}
+
+        {indicator.warning && (
+          <div className="mt-4 text-sm text-amber-600 bg-amber-50 px-3 py-2 rounded-lg">
+            {indicator.warning}
           </div>
         )}
       </CardContent>
@@ -1450,30 +1481,40 @@ export default function SDHDashboard() {
         if (error) throw error;
         
         if (data && data.length > 0) {
-          const processedData = data.map(row => ({
-            ...row,
-            id: row.id,
-            domain: row.domain,
-            subdomain: row.subdomain,
-            title: row.title,
-            description: row.description || '',
-            unit: row.unit,
-            indicatorType: row.indicator_type,
-            target: row.target,
-            baseline: row.baseline,
-            current: row.current,
-            currentYear: row.current_year, // Ensure this is properly mapped
-            warning: row.warning || '',
-            status: row.status,
-            timeSeriesData: row.time_series_data || [],
-            disaggregationTypes: row.disaggregation_types || [],
-            details: {
-              methodology: row?.details?.methodology || '',
-              dataSources: row?.details?.dataSources || [],
-              targetMethod: row?.details?.targetMethod || '',
-              relevantPolicies: row?.details?.relevantPolicies || []
-            }
-          }));
+          const processedData = data.map(row => {
+            // Count years with data in time_series_data
+            const yearsWithData = row.time_series_data ? 
+              new Set(row.time_series_data.map((d: any) => d.year)).size : 
+              0;
+  
+            // Force status to 'Baseline Only' if only one year of data
+            const status = yearsWithData <= 1 ? 'Baseline Only' : row.status;
+  
+            return {
+              ...row,
+              id: row.id,
+              domain: row.domain,
+              subdomain: row.subdomain,
+              title: row.title,
+              description: row.description || '',
+              unit: row.unit,
+              indicatorType: row.indicator_type,
+              target: row.target,
+              baseline: row.baseline,
+              current: row.current,
+              currentYear: row.current_year,
+              warning: yearsWithData <= 1 ? 'Only baseline data available' : (row.warning || ''),
+              status: status, // Use the calculated status
+              timeSeriesData: row.time_series_data || [],
+              disaggregationTypes: row.disaggregation_types || [],
+              details: {
+                methodology: row?.details?.methodology || '',
+                dataSources: row?.details?.dataSources || [],
+                targetMethod: row?.details?.targetMethod || '',
+                relevantPolicies: row?.details?.relevantPolicies || []
+              }
+            };
+          });
           setIndicators(processedData);
           setSelectedDomain(processedData[0].domain);
         }
@@ -1483,7 +1524,7 @@ export default function SDHDashboard() {
         setIsLoading(false);
       }
     };
-
+  
     loadIndicators();
   }, []);
 
