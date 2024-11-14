@@ -1311,14 +1311,14 @@ const IndicatorCard: React.FC<IndicatorCardProps> = ({ indicator, onClick }) => 
 
           {/* Baseline */}
           <div>
-            <div className={`flex items-center gap-2 ${showWarning ? 'text-amber-600' : 'text-gray-600'}`}>
-              <div className={`p-2 rounded-full ${showWarning ? 'bg-amber-50' : 'bg-gray-50'}`}>
+            <div className="flex items-center gap-2 text-gray-600">
+              <div className="p-2 bg-gray-50 rounded-full">
                 <TrendingUp className="w-4 h-4" />
               </div>
               <span className="text-sm">Baseline</span>
             </div>
             <div className="flex items-baseline gap-1">
-              <span className={`text-lg font-semibold ${showWarning ? 'text-amber-600' : ''}`}>
+              <span className="text-lg font-semibold">
                 {formatValue(indicator.baseline)}
               </span>
               <span className="text-sm text-gray-500">{indicator.unit}</span>
