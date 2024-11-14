@@ -1011,228 +1011,229 @@ const IndicatorOverview: React.FC<IndicatorOverviewProps> = ({ indicator }) => {
   );
 };
 
-const IndicatorCard: React.FC<IndicatorCardProps> = ({ indicator, onClick }) => {
-  // Check if we're declining from baseline despite meeting target
-  const isTargetAchieved = indicator.indicatorType === 'direct' 
-    ? indicator.current >= indicator.target 
-    : indicator.current <= indicator.target;
-    
-  const isDecliningFromBaseline = indicator.indicatorType === 'direct'
-    ? indicator.current < indicator.baseline
-    : indicator.current > indicator.baseline;
-
-  const showWarning = isTargetAchieved && isDecliningFromBaseline;
-
-  // Calculate progress for display
-  const progress = UnitSystem.calculateProgress(
-    indicator.current,
-    indicator.baseline,
-    indicator.target,
-    indicator.indicatorType
-  );
-
-  const getStatusDisplay = () => {
-    if (indicator.timeSeriesData.length <= 1) {
-      return 'Baseline Data Only';
-    }
-    
-    if (indicator.status === 'Target Achieved' && isDecliningFromBaseline) {
-      return 'Target Achieved but Declining';
-    }
-    
-    if (indicator.status === 'Improving') {
-      if (progress < 25) {
-        return 'Initial Progress';
-      } else if (progress < 50) {
-        return 'Making Progress';
-      } else if (progress < 75) {
-        return 'Significant Progress';
-      } else {
-        return 'Near Target';
+  const IndicatorCard: React.FC<IndicatorCardProps> = ({ indicator, onClick }) => {
+    // Check if we're declining from baseline despite meeting target
+    const isTargetAchieved = indicator.indicatorType === 'direct' 
+      ? indicator.current >= indicator.target 
+      : indicator.current <= indicator.target;
+      
+    const isDecliningFromBaseline = indicator.indicatorType === 'direct'
+      ? indicator.current < indicator.baseline
+      : indicator.current > indicator.baseline;
+  
+    const showWarning = isTargetAchieved && isDecliningFromBaseline;
+  
+    // Calculate progress for display
+    const progress = UnitSystem.calculateProgress(
+      indicator.current,
+      indicator.baseline,
+      indicator.target,
+      indicator.indicatorType
+    );
+  
+    const getStatusDisplay = () => {
+      if (indicator.timeSeriesData.length <= 1) {
+        return 'Baseline Data Only';
       }
-    }
-    return indicator.status;
-  };
-
-  const getStatusStyles = () => {
-    if (indicator.timeSeriesData.length <= 1) {
-      return {
-        container: 'bg-gray-100 text-gray-800 border border-gray-200',
-        dot: 'bg-gray-500'
-      };
-    }
-
-    switch (indicator.status) {
-      case 'Target Achieved':
-        return {
-          container: isDecliningFromBaseline 
-            ? 'bg-amber-100 text-amber-800 border border-amber-200'
-            : 'bg-green-100 text-green-800 border border-green-200',
-          dot: isDecliningFromBaseline ? 'bg-amber-500' : 'bg-green-500'
-        };
-      case 'Improving':
-        return {
-          container: 'bg-blue-100 text-blue-800 border border-blue-200',
-          dot: 'bg-blue-500'
-        };
-      case 'Getting Worse':
-        return {
-          container: 'bg-red-100 text-red-800 border border-red-200',
-          dot: 'bg-red-500'
-        };
-      case 'No Data':
+      
+      if (indicator.status === 'Target Achieved' && isDecliningFromBaseline) {
+        return 'Target Achieved but Declining';
+      }
+      
+      if (indicator.status === 'Improving') {
+        if (progress < 25) {
+          return 'Initial Progress';
+        } else if (progress < 50) {
+          return 'Making Progress';
+        } else if (progress < 75) {
+          return 'Significant Progress';
+        } else {
+          return 'Near Target';
+        }
+      }
+      return indicator.status;
+    };
+  
+    const getStatusStyles = () => {
+      if (indicator.timeSeriesData.length <= 1) {
         return {
           container: 'bg-gray-100 text-gray-800 border border-gray-200',
           dot: 'bg-gray-500'
         };
-      default:
-        return {
-          container: 'bg-yellow-100 text-yellow-800 border border-yellow-200',
-          dot: 'bg-yellow-500'
-        };
-    }
+      }
+  
+      switch (indicator.status) {
+        case 'Target Achieved':
+          return {
+            container: isDecliningFromBaseline 
+              ? 'bg-amber-100 text-amber-800 border border-amber-200'
+              : 'bg-green-100 text-green-800 border border-green-200',
+            dot: isDecliningFromBaseline ? 'bg-amber-500' : 'bg-green-500'
+          };
+        case 'Improving':
+          return {
+            container: 'bg-blue-100 text-blue-800 border border-blue-200',
+            dot: 'bg-blue-500'
+          };
+        case 'Getting Worse':
+          return {
+            container: 'bg-red-100 text-red-800 border border-red-200',
+            dot: 'bg-red-500'
+          };
+        case 'No Data':
+          return {
+            container: 'bg-gray-100 text-gray-800 border border-gray-200',
+            dot: 'bg-gray-500'
+          };
+        default:
+          return {
+            container: 'bg-yellow-100 text-yellow-800 border border-yellow-200',
+            dot: 'bg-yellow-500'
+          };
+      }
+    };
+  
+    const formatValue = (value: number): string => {
+      if (isNaN(value)) return 'No data';
+      return value.toFixed(1);
+    };
+  
+    const statusStyles = getStatusStyles();
+  
+    return (
+      <Card 
+        className="mb-4 cursor-pointer hover:shadow-md transition-shadow"
+        onClick={onClick}
+      >
+        <CardContent className="p-4">
+          {/* Header with ID and domain */}
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <span className="text-gray-500 text-sm">{indicator.id}</span>
+              <span className="text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full text-sm">
+                {indicator.subdomain}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              {showWarning && (
+                <div className="text-amber-600 bg-amber-50 px-2 py-1 rounded-full text-sm flex items-center gap-1">
+                  <TrendingDown className="w-4 h-4" />
+                  <span>Declining from Baseline</span>
+                </div>
+              )}
+              <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium gap-1 ${statusStyles.container}`}>
+                <span className={`w-2 h-2 rounded-full ${statusStyles.dot}`} />
+                {getStatusDisplay()}
+              </div>
+            </div>
+          </div>
+  
+          <h3 className="text-lg font-semibold mb-4">{indicator.title}</h3>
+  
+          {/* Values grid */}
+          <div className="grid grid-cols-3 gap-8 mb-4">
+            {/* Target */}
+            <div>
+              <div className="flex items-center gap-2 text-blue-600">
+                <div className="p-2 bg-blue-50 rounded-full">
+                  <Target className="w-4 h-4" />
+                </div>
+                <span className="text-sm">
+                  Target {indicator.indicatorType === 'direct' ? '↑' : '↓'}
+                </span>
+              </div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-lg font-semibold">
+                  {formatValue(indicator.target)}
+                </span>
+                <span className="text-sm text-gray-500">{indicator.unit}</span>
+              </div>
+            </div>
+  
+            {/* Current */}
+            <div>
+              <div className="flex items-center gap-2 text-gray-600">
+                <div className="p-2 bg-gray-50 rounded-full">
+                  <Activity className="w-4 h-4" />
+                </div>
+                <span className="text-sm">Current ({indicator.currentYear || 'N/A'})</span>
+              </div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-lg font-semibold">
+                  {formatValue(indicator.current)}
+                </span>
+                <span className="text-sm text-gray-500">{indicator.unit}</span>
+              </div>
+            </div>
+  
+            {/* Baseline */}
+            <div>
+              <div className={`flex items-center gap-2 ${showWarning ? 'text-amber-600' : 'text-gray-600'}`}>
+                <div className={`p-2 rounded-full ${showWarning ? 'bg-amber-50' : 'bg-gray-50'}`}>
+                  <TrendingUp className="w-4 h-4" />
+                </div>
+                <span className="text-sm">Baseline</span>
+              </div>
+              <div className="flex items-baseline gap-1">
+                <span className={`text-lg font-semibold ${showWarning ? 'text-amber-600' : ''}`}>
+                  {formatValue(indicator.baseline)}
+                </span>
+                <span className="text-sm text-gray-500">{indicator.unit}</span>
+              </div>
+            </div>
+          </div>
+  
+          {/* Progress bar section with progress number */}
+          <div className="space-y-2">
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-sm text-gray-600">Progress</span>
+              <span className="text-sm font-medium">{progress.toFixed(1)}%</span>
+            </div>
+            <ProgressSegment 
+              progress={progress}
+              status={indicator.status}
+              indicatorType={indicator.indicatorType}
+            />
+            <div className="flex justify-between text-sm text-gray-500">
+              <span>Baseline</span>
+              <span>{getStatusDisplay()}</span>
+              <span>Target</span>
+            </div>
+          </div>
+  
+          {/* Warning message */}
+          {indicator.warning && !showWarning && (
+            <div className="mt-4 text-sm text-amber-600 bg-amber-50 px-3 py-2 rounded-lg flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4" />
+              <span>{indicator.warning}</span>
+            </div>
+          )}
+  
+          {/* Warning message for declining from baseline */}
+          {showWarning && (
+            <div className="mt-4 text-sm text-amber-600 bg-amber-50 px-3 py-2 rounded-lg flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4" />
+              <span>
+                While target is achieved, performance has declined from baseline value of{' '}
+                {formatValue(indicator.baseline)} {indicator.unit}
+              </span>
+            </div>
+          )}
+  
+          {/* Disaggregation tags */}
+          {indicator.disaggregationTypes.length > 0 && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {indicator.disaggregationTypes.map(type => (
+                <span key={type} className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                  {formatCategoryName(type)}
+                </span>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    );
   };
-
-  const formatValue = (value: number): string => {
-    if (isNaN(value)) return 'No data';
-    return value.toFixed(1);
-  };
-
-  const statusStyles = getStatusStyles();
-
-  return (
-    <Card 
-      className="mb-4 cursor-pointer hover:shadow-md transition-shadow"
-      onClick={onClick}
-    >
-      <CardContent className="p-4">
-        {/* Header with ID and domain */}
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <span className="text-gray-500 text-sm">{indicator.id}</span>
-            <span className="text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full text-sm">
-              {indicator.subdomain}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            {showWarning && (
-              <div className="text-amber-600 bg-amber-50 px-2 py-1 rounded-full text-sm flex items-center gap-1">
-                <TrendingDown className="w-4 h-4" />
-                <span>Declining from Baseline</span>
-              </div>
-            )}
-            <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium gap-1 ${statusStyles.container}`}>
-              <span className={`w-2 h-2 rounded-full ${statusStyles.dot}`} />
-              {getStatusDisplay()}
-            </div>
-          </div>
-        </div>
-
-        <h3 className="text-lg font-semibold mb-4">{indicator.title}</h3>
-
-        {/* Values grid */}
-        <div className="grid grid-cols-3 gap-8 mb-4">
-          {/* Target */}
-          <div>
-            <div className="flex items-center gap-2 text-blue-600">
-              <div className="p-2 bg-blue-50 rounded-full">
-                <Target className="w-4 h-4" />
-              </div>
-              <span className="text-sm">
-                Target {indicator.indicatorType === 'direct' ? '↑' : '↓'}
-              </span>
-            </div>
-            <div className="flex items-baseline gap-1">
-              <span className="text-lg font-semibold">
-                {formatValue(indicator.target)}
-              </span>
-              <span className="text-sm text-gray-500">{indicator.unit}</span>
-            </div>
-          </div>
-
-          {/* Current */}
-          <div>
-            <div className="flex items-center gap-2 text-gray-600">
-              <div className="p-2 bg-gray-50 rounded-full">
-                <Activity className="w-4 h-4" />
-              </div>
-              <span className="text-sm">Current ({indicator.currentYear || 'N/A'})</span>
-            </div>
-            <div className="flex items-baseline gap-1">
-              <span className="text-lg font-semibold">
-                {formatValue(indicator.current)}
-              </span>
-              <span className="text-sm text-gray-500">{indicator.unit}</span>
-            </div>
-          </div>
-
-          {/* Baseline */}
-          <div>
-            <div className={`flex items-center gap-2 ${showWarning ? 'text-amber-600' : 'text-gray-600'}`}>
-              <div className={`p-2 rounded-full ${showWarning ? 'bg-amber-50' : 'bg-gray-50'}`}>
-                <TrendingUp className="w-4 h-4" />
-              </div>
-              <span className="text-sm">Baseline</span>
-            </div>
-            <div className="flex items-baseline gap-1">
-              <span className={`text-lg font-semibold ${showWarning ? 'text-amber-600' : ''}`}>
-                {formatValue(indicator.baseline)}
-              </span>
-              <span className="text-sm text-gray-500">{indicator.unit}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Progress bar section with progress number */}
-                <div className="space-y-2">
-          <div className="flex justify-between items-center mb-1">
-            <span className="text-sm text-gray-600">Progress</span>
-            <span className="text-sm font-medium">{progress.toFixed(1)}%</span>
-          </div>
-          <ProgressSegment 
-            progress={progress}
-            status={indicator.status}
-            indicatorType={indicator.indicatorType}
-          />
-          <div className="flex justify-between text-sm text-gray-500">
-            <span>Baseline</span>
-            <span>{getStatusDisplay()}</span>
-            <span>Target</span>
-          </div>
-        </div>
-
-        {/* Warning message */}
-        {showWarning && (
-          <div className="mt-4 text-sm text-amber-600 bg-amber-50 px-3 py-2 rounded-lg flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4" />
-            <span>
-              While target is achieved, performance has declined from baseline value of{' '}
-              {formatValue(indicator.baseline)} {indicator.unit}
-            </span>
-          </div>
-        )}
-
-        {/* Disaggregation tags */}
-        {indicator.disaggregationTypes.length > 0 && (
-          <div className="mt-4 flex flex-wrap gap-2">
-            {indicator.disaggregationTypes.map(type => (
-              <span key={type} className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                {formatCategoryName(type)}
-              </span>
-            ))}
-          </div>
-        )}
-
-        {/* Warning badge for general warnings */}
-        {indicator.warning && (
-          <div className="mt-4 text-sm text-amber-600 bg-amber-50 px-3 py-2 rounded-lg">
-            {indicator.warning}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-};
 
 // Edit Form Component
 const EditIndicatorForm: React.FC<EditIndicatorFormProps> = ({ 
