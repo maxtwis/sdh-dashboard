@@ -1498,42 +1498,41 @@ export default function SDHDashboard() {
         if (error) throw error;
         
         if (data && data.length > 0) {
-          const processedData = data.map(row => {
-            // Count years with data in time_series_data
-            const yearsWithData = row.time_series_data ? 
-              new Set(row.time_series_data.map((d: any) => d.year)).size : 
-              0;
-  
-            // Force status to 'Baseline Only' if only one year of data
-            const status = yearsWithData <= 1 ? 'Baseline Only' : row.status;
-  
-            return {
-              ...row,
-              id: row.id,
-              domain: row.domain,
-              subdomain: row.subdomain,
-              title: row.title,
-              description: row.description || '',
-              unit: row.unit,
-              indicatorType: row.indicator_type,
-              target: row.target,
-              baseline: row.baseline,
-              current: row.current,
-              currentYear: row.current_year,
-              warning: yearsWithData <= 1 ? 'Only baseline data available' : (row.warning || ''),
-              status: status, // Use the calculated status
-              timeSeriesData: row.time_series_data || [],
-              disaggregationTypes: row.disaggregation_types || [],
-              details: {
-                methodology: row?.details?.methodology || '',
-                dataSources: row?.details?.dataSources || [],
-                targetMethod: row?.details?.targetMethod || '',
-                relevantPolicies: row?.details?.relevantPolicies || []
-              }
-            };
+          const processedData = data.map(row => ({
+            ...row,
+            id: row.id,
+            domain: row.domain,
+            subdomain: row.subdomain,
+            title: row.title,
+            description: row.description || '',
+            unit: row.unit,
+            indicatorType: row.indicator_type,
+            target: row.target,
+            baseline: row.baseline,
+            current: row.current,
+            currentYear: row.current_year,
+            warning: row.warning || '',
+            status: row.status,
+            timeSeriesData: row.time_series_data || [],
+            disaggregationTypes: row.disaggregation_types || [],
+            details: {
+              methodology: row?.details?.methodology || '',
+              dataSources: row?.details?.dataSources || [],
+              targetMethod: row?.details?.targetMethod || '',
+              relevantPolicies: row?.details?.relevantPolicies || []
+            }
+          }));
+
+          // Sort indicators by their ID
+          const sortedData = processedData.sort((a, b) => {
+            // Extract numeric portion from ID (e.g., "ECON-01" -> "01")
+            const aNum = parseInt(a.id.split('-')[1]);
+            const bNum = parseInt(b.id.split('-')[1]);
+            return aNum - bNum;
           });
-          setIndicators(processedData);
-          setSelectedDomain(processedData[0].domain);
+
+          setIndicators(sortedData);
+          setSelectedDomain(sortedData[0].domain);
         }
       } catch (error) {
         console.error('Error loading indicators:', error);
@@ -1571,7 +1570,11 @@ export default function SDHDashboard() {
           });
   
         // Process CSV data into indicators
-        const newIndicators = processCSVData(data);
+        const newIndicators = processCSVData(data).sort((a, b) => {
+          const aNum = parseInt(a.id.split('-')[1]);
+          const bNum = parseInt(b.id.split('-')[1]);
+          return aNum - bNum;
+        });
         
         // Merge with existing data
         const mergedIndicators = await mergeIndicatorData(newIndicators, supabase);
