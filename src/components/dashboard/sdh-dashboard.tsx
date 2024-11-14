@@ -289,30 +289,31 @@ class UnitSystem {
 
     // For direct indicators (higher is better)
     if (indicatorType === 'direct') {
-      // If we've reached or exceeded target
-      if (current >= target) {
-        return 100;
+      if (target <= baseline) {
+        // Target is lower than baseline (improvement is going down)
+        const range = baseline - target;
+        const achievement = baseline - current;
+        return Math.min(100, Math.max(0, (achievement / range) * 100));
+      } else {
+        // Target is higher than baseline (improvement is going up)
+        const range = target - baseline;
+        const achievement = current - baseline;
+        return Math.min(100, Math.max(0, (achievement / range) * 100));
       }
-      // If we've fallen below baseline
-      if (current < baseline) {
-        // Calculate negative progress
-        return Math.max(0, ((current - baseline) / (target - baseline)) * 100);
-      }
-      // Normal case - between baseline and target
-      return ((current - baseline) / (target - baseline)) * 100;
     } 
     // For reverse indicators (lower is better)
     else {
-      // If we've reached or exceeded target
-      if (current <= target) {
-        return 100;
+      if (target >= baseline) {
+        // Target is higher than baseline (improvement is going up)
+        const range = target - baseline;
+        const achievement = current - baseline;
+        return Math.min(100, Math.max(0, (achievement / range) * 100));
+      } else {
+        // Target is lower than baseline (improvement is going down)
+        const range = baseline - target;
+        const achievement = baseline - current;
+        return Math.min(100, Math.max(0, (achievement / range) * 100));
       }
-      // If we've gotten worse than baseline
-      if (current > baseline) {
-        return 0;
-      }
-      // Normal case - between baseline and target
-      return ((baseline - current) / (baseline - target)) * 100;
     }
   }
 
@@ -323,7 +324,6 @@ class UnitSystem {
     indicatorType: 'direct' | 'reverse',
     numberOfYears: number
   ): Indicator['status'] {
-    // Always check number of years first
     if (numberOfYears <= 1) {
       return 'Baseline Only';
     }
@@ -337,12 +337,20 @@ class UnitSystem {
       current <= target;
 
     if (isTarget) {
+      // Even if we've hit target, check if we're declining from baseline
+      const isDecline = indicatorType === 'direct' ?
+        current < baseline :
+        current > baseline;
+
+      if (isDecline) {
+        return 'Getting Worse';
+      }
       return 'Target Achieved';
     }
 
     const isImproving = indicatorType === 'direct' ? 
-      current >= baseline : // Changed from > to >= to consider maintaining value as not getting worse
-      current <= baseline;  // Changed from < to <= to consider maintaining value as not getting worse
+      current >= baseline : 
+      current <= baseline;
 
     if (!isImproving) {
       return 'Getting Worse';
