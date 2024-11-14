@@ -313,10 +313,10 @@ class UnitSystem {
     baseline: number,
     target: number,
     indicatorType: 'direct' | 'reverse',
-    timeSeriesData: TimeSeriesDataPoint[]
+    numberOfYears: number
   ): Indicator['status'] {
-    // Check if we only have baseline data
-    if (timeSeriesData.length <= 1) {
+    // First check number of years
+    if (numberOfYears <= 1) {
       return 'Baseline Only';
     }
   
@@ -325,19 +325,18 @@ class UnitSystem {
     }
   
     const isTarget = indicatorType === 'direct' ? 
-      current >= target : 
-      current <= target;
-  
-    if (isTarget) {
-      return 'Target Achieved';
-    }
-  
-    const isImproving = indicatorType === 'direct' ? 
-      current > baseline : 
-      current < baseline;
+    current >= target : 
+    current <= target;
+
+  if (isTarget) {
+    return 'Target Achieved';
+  }
+  const isImproving = indicatorType === 'direct' ? 
+    current > baseline : 
+    current < baseline;
   
     const progress = this.calculateProgress(current, baseline, target, indicatorType);
-  
+
     if (progress >= 25) {
       return 'Improving';
     } else if (!isImproving) {
@@ -346,7 +345,7 @@ class UnitSystem {
       return 'Little or No Change';
     }
   }
-}
+} 
 
 // Helper Functions
 const formatValue = (value: number | null | undefined, unit: string): string => {
@@ -482,7 +481,11 @@ const processCSVData = (data: any[]): Indicator[] => {
       // Get all years for this indicator where we have data
       const yearsWithData = new Set(
         data
-          .filter(r => r['Indicator ID'] === id && !isNaN(parseFloat(r['Total'])))
+          .filter(r => 
+            r['Indicator ID'] === id && 
+            r['Total'] && // Check if Total exists
+            !isNaN(parseFloat(r['Total']))
+          )
           .map(r => r['Year'])
       );
       
@@ -500,11 +503,11 @@ const processCSVData = (data: any[]): Indicator[] => {
         status = 'No Data';
       } else {
         status = UnitSystem.calculateStatus(
-          current, 
-          baseline, 
-          target, 
-          row['IndicatorType']?.toLowerCase() || 'direct',
-          data.filter(r => r['Indicator ID'] === id && !isNaN(parseFloat(r['Total']))) // Pass filtered data array
+          current,
+          baseline,
+          target,
+          (row['IndicatorType']?.toLowerCase() || 'direct') as 'direct' | 'reverse',
+          yearsWithData.size
         );
       }
 
@@ -589,11 +592,11 @@ const processCSVData = (data: any[]): Indicator[] => {
 
   // Post-processing: Sort time series data and validate
   Object.values(processedData).forEach(indicator => {
-    // Sort time series data by year
-    indicator.timeSeriesData.sort((a, b) => 
-      parseInt(a.year) - parseInt(b.year)
+    // Filter out empty or invalid data points
+    indicator.timeSeriesData = indicator.timeSeriesData.filter(point => 
+      !isNaN(point.total) && point.total !== null
     );
-
+  
     // Sort disaggregation data within each time series point
     indicator.timeSeriesData.forEach(point => {
       point.disaggregation.sort((a, b) => 
@@ -606,6 +609,9 @@ const processCSVData = (data: any[]): Indicator[] => {
     if (indicator.timeSeriesData.length === 0) {
       indicator.warning = 'No time series data available';
       indicator.status = 'No Data';
+    }
+    if (indicator.timeSeriesData.length <= 1) {
+      indicator.status = 'Baseline Only';
     }
 
     // Set current value to latest available if not explicitly provided
@@ -1194,7 +1200,7 @@ const EditIndicatorForm: React.FC<EditIndicatorFormProps> = ({
       formData.baseline,
       formData.target,
       formData.indicatorType,
-      formData.timeSeriesData // Add this argument
+      formData.timeSeriesData.length 
     );
     
     const updatedIndicator = { ...formData, status: newStatus };
@@ -1565,15 +1571,20 @@ export default function SDHDashboard() {
   const handleSaveIndicator = async (updatedIndicator: Indicator) => {
     try {
       setIsLoading(true);
-
+  
       // Ensure we preserve the currentYear
-    const indicatorWithYear = {
-      ...updatedIndicator,
-      currentYear: updatedIndicator.currentYear || 
-                  indicators.find(i => i.id === updatedIndicator.id)?.currentYear ||
-                  new Date().getFullYear()  // fallback to current year if none exists
-    };
-      
+      const indicatorWithYear = {
+        ...updatedIndicator,
+        currentYear: updatedIndicator.currentYear || 
+                    indicators.find(i => i.id === updatedIndicator.id)?.currentYear ||
+                    new Date().getFullYear()  // fallback to current year if none exists
+      };
+        
+      // Force status to 'Baseline Only' if only one year of data
+      const finalStatus = indicatorWithYear.timeSeriesData.length <= 1 
+        ? 'Baseline Only' 
+        : indicatorWithYear.status;
+  
       // Prepare the data in the format Supabase expects
       const supabaseData = {
         id: indicatorWithYear.id,
@@ -1586,9 +1597,9 @@ export default function SDHDashboard() {
         target: indicatorWithYear.target,
         baseline: indicatorWithYear.baseline,
         current: indicatorWithYear.current,
-        current_year: indicatorWithYear.currentYear, // Make sure this is included
+        current_year: indicatorWithYear.currentYear,
         warning: indicatorWithYear.warning || '',
-        status: indicatorWithYear.status,
+        status: finalStatus, // Use the forced status here
         time_series_data: indicatorWithYear.timeSeriesData,
         disaggregation_types: indicatorWithYear.disaggregationTypes,
         details: {
@@ -1598,32 +1609,35 @@ export default function SDHDashboard() {
           relevantPolicies: indicatorWithYear.details.relevantPolicies
         }
       };
-  
-      // Log the data being sent for debugging
-      console.log('Updating indicator with data:', supabaseData);
-  
+    
+      // Update in Supabase
       const { error } = await supabase
-      .from('indicators')
-      .upsert(supabaseData)
-      .eq('id', indicatorWithYear.id);
-
-    if (error) {
-      console.error('Supabase error:', error);
-      throw error;
-    }
+        .from('indicators')
+        .upsert(supabaseData)
+        .eq('id', indicatorWithYear.id);
   
-      // Update local state
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
+    
+      // Update local state with the correct status
+      const updatedIndicatorWithStatus = {
+        ...indicatorWithYear,
+        status: finalStatus
+      };
+  
       setIndicators(prev => 
         prev.map(ind => 
-          ind.id === indicatorWithYear.id ? indicatorWithYear : ind
+          ind.id === updatedIndicatorWithStatus.id ? updatedIndicatorWithStatus : ind
         )
       );
-      
-      setSelectedIndicator(indicatorWithYear);
+        
+      setSelectedIndicator(updatedIndicatorWithStatus);
       setIsEditing(false);
-  
+    
       alert('Changes saved successfully');
-  
+    
     } catch (error) {
       console.error('Error saving indicator:', error);
       alert('Error saving changes. Please try again.');
