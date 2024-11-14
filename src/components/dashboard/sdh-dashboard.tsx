@@ -436,24 +436,26 @@ class UnitSystem {
     indicatorType: 'direct' | 'reverse',
     numberOfYears: number
 ): Indicator['status'] {
-    // ALWAYS check number of years first
+    // CRITICAL: Always check years of data first, before any other logic
     if (numberOfYears <= 1) {
         return 'Baseline Only';
     }
 
-    // Then check for missing data
+    // Skip all other checks if we only have baseline data
+    if (numberOfYears === 0 || (isNaN(current) && isNaN(baseline) && isNaN(target))) {
+        return 'No Data';
+    }
+
     if (isNaN(current) || isNaN(baseline) || isNaN(target)) {
         return 'No Data';
     }
 
-    // For direct indicators, check if current >= target
-    // For reverse indicators, check if current <= target
+    // Only proceed with other status checks if we have more than one year of data
     const isTarget = indicatorType === 'direct' ? 
         current >= target : 
         current <= target;
 
     if (isTarget) {
-        // Even if we've hit target, check if we're declining from baseline
         const isDecline = indicatorType === 'direct' ?
             current < baseline :
             current > baseline;
@@ -464,8 +466,6 @@ class UnitSystem {
         return 'Target Achieved';
     }
 
-    // For direct indicators, check if current >= baseline
-    // For reverse indicators, check if current <= baseline
     const isImproving = indicatorType === 'direct' ? 
         current >= baseline : 
         current <= baseline;
@@ -615,7 +615,7 @@ const processCSVData = (data: any[]): Indicator[] => {
           .filter(Boolean)
       ));
 
-      // Get all years for this indicator where we have data with valid totals
+      // Get all years with valid data for this indicator
       const yearsWithData = Array.from(new Set(
         data
           .filter(r => 
@@ -624,7 +624,10 @@ const processCSVData = (data: any[]): Indicator[] => {
             !isNaN(parseFloat(r['Total']))
           )
           .map(r => r['Year'])
-      )).sort((a, b) => parseInt(a) - parseInt(b)); // Sort years numerically
+      )).sort((a, b) => parseInt(a) - parseInt(b));
+
+      // Count actual years with valid data
+      const numberOfYears = yearsWithData.length;
       
       // Parse numeric values
       const current = row['Current'] ? parseFloat(row['Current']) : NaN;
@@ -638,20 +641,20 @@ const processCSVData = (data: any[]): Indicator[] => {
         row['DataSources'].split(';').map((s: string) => s.trim()) : 
         [];
 
-      // Create warning message if needed
+      // Create warning message
       let warning = '';
       if (isNaN(current)) warning = 'Missing current value';
       else if (isNaN(baseline)) warning = 'Missing baseline value';
       else if (isNaN(target)) warning = 'Missing target value';
-      else if (yearsWithData.length <= 1) warning = 'Only baseline data available';
+      else if (numberOfYears <= 1) warning = 'Only baseline data available';
 
-      // Determine status
+      // Initial status calculation
       const status = UnitSystem.calculateStatus(
         current,
         baseline,
         target,
         (row['IndicatorType']?.toLowerCase() || 'direct') as 'direct' | 'reverse',
-        yearsWithData.length
+        numberOfYears
       );
 
       // Create initial indicator object
@@ -722,12 +725,17 @@ const processCSVData = (data: any[]): Indicator[] => {
 
   // Post-processing: Sort time series data and validate
   Object.values(processedData).forEach(indicator => {
-    // Filter out empty or invalid data points
+    // Filter out invalid data points
     indicator.timeSeriesData = indicator.timeSeriesData.filter(point => 
       !isNaN(point.total) && point.total !== null
     );
-  
-    // Sort disaggregation data within each time series point
+
+    // Sort time series data by year
+    indicator.timeSeriesData.sort((a, b) => 
+      parseInt(a.year) - parseInt(b.year)
+    );
+    
+    // Sort disaggregation data
     indicator.timeSeriesData.forEach(point => {
       point.disaggregation.sort((a, b) => 
         a.category.localeCompare(b.category) || 
@@ -735,19 +743,15 @@ const processCSVData = (data: any[]): Indicator[] => {
       );
     });
 
-    // Sort time series data by year
-    indicator.timeSeriesData.sort((a, b) => 
-      parseInt(a.year) - parseInt(b.year)
-    );
+    // Count actual years with valid data after processing
+    const validYearsCount = indicator.timeSeriesData.length;
 
-    // Additional validation and status updates
-    const yearsWithData = indicator.timeSeriesData.length;
-
-    if (yearsWithData === 0) {
+    // Update validation and status
+    if (validYearsCount === 0) {
       indicator.warning = 'No time series data available';
       indicator.status = 'No Data';
-    }
-    if (yearsWithData <= 1) {
+    } else if (validYearsCount === 1) {
+      indicator.warning = 'Only baseline data available';
       indicator.status = 'Baseline Only';
     }
 
@@ -758,13 +762,13 @@ const processCSVData = (data: any[]): Indicator[] => {
       indicator.currentYear = parseInt(latestData.year);
     }
 
-    // Revalidate status after all processing
+    // Final status calculation with accurate year count
     indicator.status = UnitSystem.calculateStatus(
       indicator.current,
       indicator.baseline,
       indicator.target,
       indicator.indicatorType,
-      yearsWithData
+      validYearsCount
     );
   });
 
