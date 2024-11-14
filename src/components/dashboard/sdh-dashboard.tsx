@@ -31,6 +31,7 @@ const colors = [
   '#EF4444', // red
   '#EC4899', // pink
 ];
+
 const STATUS_FILTERS: StatusFilter[] = [
   {
     label: 'All Indicators',
@@ -74,7 +75,9 @@ const STATUS_FILTERS: StatusFilter[] = [
       ring: 'ring-red-400',
     },
     getCount: (stats) => stats.needsAttention,
-    filterFn: (indicator) => indicator.status === 'Getting Worse',
+    filterFn: (indicator) => 
+      // Only consider "Getting Worse" if there's more than one year of data
+      indicator.status === 'Getting Worse' && indicator.timeSeriesData.length > 1,
   },
   {
     label: 'Little or No Change',
@@ -107,7 +110,9 @@ const STATUS_FILTERS: StatusFilter[] = [
       ring: 'ring-gray-400',
     },
     getCount: (stats) => stats.baselineOnly,
-    filterFn: (indicator) => indicator.status === 'Baseline Only',
+    filterFn: (indicator) => 
+      // Consider as "Baseline Only" if there's only one year of data
+      indicator.timeSeriesData.length <= 1 || indicator.status === 'Baseline Only',
   },
 ];
 
@@ -1762,19 +1767,40 @@ export default function SDHDashboard() {
 
   const calculateSummaryStats = (): SummaryStats => {
     const total = indicators.length;
-    const targetAchieved = indicators.filter(i => 
+    
+    // First, separate baseline-only indicators
+    const baselineOnly = indicators.filter(i => 
+      i.timeSeriesData.length <= 1 || i.status === 'Baseline Only'
+    ).length;
+    
+    // Only consider other statuses for indicators with more than one year of data
+    const multiYearIndicators = indicators.filter(i => i.timeSeriesData.length > 1);
+    
+    const targetAchieved = multiYearIndicators.filter(i => 
       i.status === 'Target Achieved' && 
       (i.indicatorType === 'direct' ? i.current >= i.baseline : i.current <= i.baseline)
     ).length;
-    const targetAchievedButDeclining = indicators.filter(i => 
+    
+    const targetAchievedButDeclining = multiYearIndicators.filter(i => 
       i.status === 'Target Achieved' && 
       (i.indicatorType === 'direct' ? i.current < i.baseline : i.current > i.baseline)
     ).length;
-    const improving = indicators.filter(i => i.status === 'Improving').length;
-    const needsAttention = indicators.filter(i => i.status === 'Getting Worse').length;
-    const littleChange = indicators.filter(i => i.status === 'Little or No Change').length;
-    const noData = indicators.filter(i => i.status === 'No Data').length;
-    const baselineOnly = indicators.filter(i => i.status === 'Baseline Only').length;
+    
+    const improving = multiYearIndicators.filter(i => 
+      i.status === 'Improving'
+    ).length;
+    
+    const needsAttention = multiYearIndicators.filter(i => 
+      i.status === 'Getting Worse'
+    ).length;
+    
+    const littleChange = multiYearIndicators.filter(i => 
+      i.status === 'Little or No Change'
+    ).length;
+    
+    const noData = indicators.filter(i => 
+      i.status === 'No Data'
+    ).length;
   
     return {
       total,
@@ -2265,11 +2291,14 @@ export default function SDHDashboard() {
           <div className="flex-1">
             {selectedDomain && indicators.length > 0 ? (
               <>
-                <h2 className="text-xl font-semibold mb-4">{selectedDomain}</h2>
                 {indicators
                   .filter(i => i.domain === selectedDomain)
                   .filter(i => {
                     const activeFilter = STATUS_FILTERS.find(f => f.value === statusFilter);
+                    // Double-check baseline only case before applying filter
+                    if (i.timeSeriesData.length <= 1) {
+                      return activeFilter?.value === 'baseline-only' || activeFilter?.value === 'all';
+                    }
                     return activeFilter ? activeFilter.filterFn(i) : true;
                   })
                   .map(indicator => (
