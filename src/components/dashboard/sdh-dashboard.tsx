@@ -1022,35 +1022,61 @@ const DataTable: React.FC<DataTableProps> = ({
 
 // IndicatorOverview Component
 const IndicatorOverview: React.FC<IndicatorOverviewProps> = ({ indicator }) => {
+  const getStatusStyles = () => {
+    // Check for baseline only case first
+    if (indicator.timeSeriesData.length <= 1) {
+      return {
+        container: 'bg-gray-100 text-gray-800 border border-gray-200',
+        dot: 'bg-gray-500'
+      };
+    }
+
+    // Handle other statuses
+    switch (indicator.status) {
+      case 'Target Achieved':
+        return {
+          container: 'bg-green-100 text-green-800 border border-green-200',
+          dot: 'bg-green-500'
+        };
+      case 'Improving':
+        return {
+          container: 'bg-blue-100 text-blue-800 border border-blue-200',
+          dot: 'bg-blue-500'
+        };
+      case 'Getting Worse':
+        return {
+          container: 'bg-red-100 text-red-800 border border-red-200',
+          dot: 'bg-red-500'
+        };
+      case 'Baseline Only':
+        return {
+          container: 'bg-gray-100 text-gray-800 border border-gray-200',
+          dot: 'bg-gray-500'
+        };
+      case 'No Data':
+        return {
+          container: 'bg-gray-100 text-gray-800 border border-gray-200',
+          dot: 'bg-gray-500'
+        };
+      default:
+        return {
+          container: 'bg-yellow-100 text-yellow-800 border border-yellow-200',
+          dot: 'bg-yellow-500'
+        };
+    }
+  };
+
+  const styles = getStatusStyles();
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <div className="text-sm text-gray-500 mb-2">Status</div>
           <div className="flex items-center">
-            <div className={`flex items-center gap-2 px-2 py-1 rounded-full text-sm font-medium ${
-              isNaN(indicator.current) || isNaN(indicator.baseline) || isNaN(indicator.target)
-                ? 'bg-gray-100 text-gray-800 border border-gray-200'
-                : indicator.status === 'Target Achieved'
-                ? 'bg-green-100 text-green-800 border border-green-200'
-                : indicator.status === 'Improving'
-                ? 'bg-blue-100 text-blue-800 border border-blue-200'
-                : indicator.status === 'Getting Worse'
-                ? 'bg-red-100 text-red-800 border border-red-200'
-                : 'bg-yellow-100 text-yellow-800 border border-yellow-200'
-            }`}>
-              <span className={`h-2 w-2 rounded-full ${
-                isNaN(indicator.current) || isNaN(indicator.baseline) || isNaN(indicator.target)
-                  ? 'bg-gray-500'
-                  : indicator.status === 'Target Achieved'
-                  ? 'bg-green-500'
-                  : indicator.status === 'Improving'
-                  ? 'bg-blue-500'
-                  : indicator.status === 'Getting Worse'
-                  ? 'bg-red-500'
-                  : 'bg-yellow-500'
-              }`} />
-              {indicator.status}
+            <div className={`flex items-center gap-2 px-2 py-1 rounded-full text-sm font-medium ${styles.container}`}>
+              <span className={`h-2 w-2 rounded-full ${styles.dot}`} />
+              {indicator.timeSeriesData.length <= 1 ? 'Baseline Only' : indicator.status}
             </div>
           </div>
         </div>
