@@ -436,21 +436,23 @@ class UnitSystem {
     indicatorType: 'direct' | 'reverse',
     numberOfYears: number
 ): Indicator['status'] {
-    // CRITICAL: Always check years of data first, before any other logic
+    // First, check if there's only baseline data or no data
     if (numberOfYears <= 1) {
         return 'Baseline Only';
     }
 
-    // Skip all other checks if we only have baseline data
-    if (numberOfYears === 0 || (isNaN(current) && isNaN(baseline) && isNaN(target))) {
+    // Check for missing critical values
+    if (isNaN(baseline) || isNaN(target)) {
         return 'No Data';
     }
 
-    if (isNaN(current) || isNaN(baseline) || isNaN(target)) {
-        return 'No Data';
+    // For indicators with only baseline year (like ECON-04),
+    // current should be same as baseline
+    if (current === baseline) {
+        return 'Baseline Only';
     }
 
-    // Only proceed with other status checks if we have more than one year of data
+    // Only proceed with other checks if we have more than baseline data
     const isTarget = indicatorType === 'direct' ? 
         current >= target : 
         current <= target;
