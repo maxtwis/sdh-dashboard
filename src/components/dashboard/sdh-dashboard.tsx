@@ -67,7 +67,7 @@ interface Indicator {
   current: number;
   currentYear: number;
   warning?: string;
-  status: 'Target Achieved' | 'Improving' | 'Getting Worse' | 'Little or No Change' | 'No Data';
+  status: 'Target Achieved' | 'Improving' | 'Getting Worse' | 'Little or No Change' | 'No Data' | 'Baseline Only';
   timeSeriesData: TimeSeriesDataPoint[];
   disaggregationTypes: string[];
   details: IndicatorDetails;
@@ -122,6 +122,12 @@ interface DatabaseIndicator {
 
 const ProgressSegment: React.FC<ProgressSegmentProps> = ({ progress, status, indicatorType }) => {
   const getProgressColors = () => {
+    // Handle baseline only case first
+    if (status === 'Baseline Only') {
+      return 'bg-gray-300';
+    }
+    
+    // Handle other statuses
     if (status === 'Target Achieved') {
       return 'bg-green-500';
     }
@@ -136,26 +142,80 @@ const ProgressSegment: React.FC<ProgressSegmentProps> = ({ progress, status, ind
     if (status === 'Getting Worse') {
       return 'bg-red-500';
     }
+
+    if (status === 'No Data') {
+      return 'bg-gray-400';
+    }
     
-    return 'bg-gray-400';
+    return 'bg-gray-400'; // Default for 'Little or No Change' and fallback
   };
 
+  // For baseline only data, we want to show just the baseline marker
+  if (status === 'Baseline Only') {
+    return (
+      <div className="relative h-2 bg-gray-200 rounded-full overflow-hidden">
+        <div className="absolute top-0 h-full w-full bg-gray-100" />
+        <div 
+          className="absolute top-0 h-full w-0.5 bg-gray-600"
+          style={{ left: '0%' }}
+        />
+        <div
+          className="absolute top-0 h-full w-0.5 bg-blue-800 opacity-50"
+          style={{ right: '0%' }}
+        />
+      </div>
+    );
+  }
+
+  // For no data, show empty bar
+  if (status === 'No Data') {
+    return (
+      <div className="relative h-2 bg-gray-200 rounded-full overflow-hidden">
+        <div className="absolute top-0 h-full w-full bg-gray-100" />
+      </div>
+    );
+  }
+
+  // For all other cases, show progress bar
   return (
     <div className="relative h-2 bg-gray-200 rounded-full overflow-hidden">
+      {/* Progress bar */}
       <div 
         className={`h-full transition-all duration-500 ${getProgressColors()}`}
-        style={{ width: `${progress}%` }}
+        style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
       />
-      {progress < 100 && (
+
+      {/* Baseline marker */}
+      <div 
+        className="absolute top-0 h-full w-0.5 bg-gray-600"
+        style={{ left: '0%' }}
+      />
+
+      {/* Target marker (only show if not achieved) */}
+      {progress < 100 && status !== 'Target Achieved' && (
         <div 
           className="absolute top-0 h-full w-0.5 bg-blue-800"
           style={{ left: '100%', transform: 'translateX(-1px)' }}
         />
       )}
-      <div 
-        className="absolute top-0 h-full w-0.5 bg-gray-400"
-        style={{ left: '0%' }}
-      />
+
+      {/* Optional: Add reference lines for important thresholds */}
+      {status === 'Improving' && (
+        <>
+          <div 
+            className="absolute top-0 h-full w-px bg-gray-400 opacity-25"
+            style={{ left: '25%' }}
+          />
+          <div 
+            className="absolute top-0 h-full w-px bg-gray-400 opacity-25"
+            style={{ left: '50%' }}
+          />
+          <div 
+            className="absolute top-0 h-full w-px bg-gray-400 opacity-25"
+            style={{ left: '75%' }}
+          />
+        </>
+      )}
     </div>
   );
 };
@@ -252,26 +312,32 @@ class UnitSystem {
     current: number,
     baseline: number,
     target: number,
-    indicatorType: 'direct' | 'reverse'
+    indicatorType: 'direct' | 'reverse',
+    timeSeriesData: TimeSeriesDataPoint[]
   ): Indicator['status'] {
+    // Check if we only have baseline data
+    if (timeSeriesData.length <= 1) {
+      return 'Baseline Only';
+    }
+  
     if (isNaN(current) || isNaN(baseline) || isNaN(target)) {
       return 'No Data';
     }
-
+  
     const isTarget = indicatorType === 'direct' ? 
       current >= target : 
       current <= target;
-
+  
     if (isTarget) {
       return 'Target Achieved';
     }
-
+  
     const isImproving = indicatorType === 'direct' ? 
       current > baseline : 
       current < baseline;
-
+  
     const progress = this.calculateProgress(current, baseline, target, indicatorType);
-
+  
     if (progress >= 25) {
       return 'Improving';
     } else if (!isImproving) {
@@ -381,6 +447,13 @@ const getStatusStyles = (status: Indicator['status']) => {
         border: 'border-gray-200',
         dot: 'bg-gray-500'
       };
+      case 'Baseline Only':
+        return {
+          bg: 'bg-gray-100',
+          text: 'text-gray-800',
+          border: 'border-gray-200',
+          dot: 'bg-gray-500'
+        };
     default:
       return {
         bg: 'bg-yellow-100',
@@ -398,19 +471,57 @@ const processCSVData = (data: any[]): Indicator[] => {
   data.forEach(row => {
     const id = row['Indicator ID'];
     if (!processedData[id]) {
+      // Get all unique disaggregation types for this indicator
       const disaggregationTypes = Array.from(new Set(
         data
           .filter(r => r['Indicator ID'] === id)
           .map(r => r['Disaggregation Category'])
           .filter(Boolean)
       ));
+
+      // Get all years for this indicator where we have data
+      const yearsWithData = new Set(
+        data
+          .filter(r => r['Indicator ID'] === id && !isNaN(parseFloat(r['Total'])))
+          .map(r => r['Year'])
+      );
       
-      // Notice we're using 'Current' instead of 'Total' here
+      // Parse numeric values
       const current = row['Current'] ? parseFloat(row['Current']) : NaN;
       const baseline = row['Baseline'] ? parseFloat(row['Baseline']) : NaN;
       const target = row['Target'] ? parseFloat(row['Target']) : NaN;
       const year = row['Year'] ? parseInt(row['Year']) : NaN;
 
+      // Determine indicator status
+      let status: Indicator['status'];
+      if (yearsWithData.size <= 1) {
+        status = 'Baseline Only';
+      } else if (isNaN(current) || isNaN(baseline) || isNaN(target)) {
+        status = 'No Data';
+      } else {
+        status = UnitSystem.calculateStatus(
+          current, 
+          baseline, 
+          target, 
+          row['IndicatorType']?.toLowerCase() || 'direct',
+          data.filter(r => r['Indicator ID'] === id && !isNaN(parseFloat(r['Total']))) // Pass filtered data array
+        );
+      }
+
+      // Create warning message if needed
+      let warning = '';
+      if (isNaN(current)) warning = 'Missing current value';
+      else if (isNaN(baseline)) warning = 'Missing baseline value';
+      else if (isNaN(target)) warning = 'Missing target value';
+      else if (yearsWithData.size <= 1) warning = 'Only baseline data available';
+
+      // Process methodology and data sources
+      const methodology = row['Methodology'] || '';
+      const dataSources = row['DataSources'] ? 
+        row['DataSources'].split(';').map((s: string) => s.trim()) : 
+        [];
+
+      // Create initial indicator object
       processedData[id] = {
         id,
         domain: row['Domain'],
@@ -418,25 +529,25 @@ const processCSVData = (data: any[]): Indicator[] => {
         title: row['Indicator Title'],
         description: row['Description'] || '',
         unit: row['Unit'] || '%',
-        indicatorType: (row['IndicatorType'] || 'direct').toLowerCase(),
+        indicatorType: (row['IndicatorType'] || 'direct').toLowerCase() as 'direct' | 'reverse',
         target,
         baseline,
         current,
         currentYear: year,
-        warning: row['Warning'] || '',
-        status: UnitSystem.calculateStatus(current, baseline, target, row['IndicatorType']?.toLowerCase() || 'direct'),
+        warning,
+        status,
         disaggregationTypes,
         timeSeriesData: [],
         details: {
-          methodology: row['Methodology'] || '',
-          dataSources: row['DataSources'] ? row['DataSources'].split(';') : [],
+          methodology,
+          dataSources,
           targetMethod: row['TargetMethod'] || '',
           relevantPolicies: []
         }
       };
     }
     
-    // Process time series data using 'Total' column for the actual values
+    // Process time series data
     const timeSeriesTotal = row['Total'] ? parseFloat(row['Total']) : NaN;
     if (!isNaN(timeSeriesTotal) && row['Year']) {
       let timeSeriesPoint = processedData[id].timeSeriesData.find(
@@ -453,16 +564,55 @@ const processCSVData = (data: any[]): Indicator[] => {
       }
 
       // Process disaggregation data
-      if (row['Disaggregation Category'] && row['Disaggregation Value'] && row['Percentage']) {
+      if (row['Disaggregation Category'] && 
+          row['Disaggregation Value'] && 
+          row['Percentage']) {
         const percentage = parseFloat(row['Percentage']);
         if (!isNaN(percentage)) {
-          timeSeriesPoint.disaggregation.push({
-            category: row['Disaggregation Category'],
-            value: row['Disaggregation Value'],
-            percentage
-          });
+          // Check if this disaggregation already exists
+          const existingDisaggregation = timeSeriesPoint.disaggregation.find(
+            d => d.category === row['Disaggregation Category'] && 
+                 d.value === row['Disaggregation Value']
+          );
+
+          if (!existingDisaggregation) {
+            timeSeriesPoint.disaggregation.push({
+              category: row['Disaggregation Category'],
+              value: row['Disaggregation Value'],
+              percentage
+            });
+          }
         }
       }
+    }
+  });
+
+  // Post-processing: Sort time series data and validate
+  Object.values(processedData).forEach(indicator => {
+    // Sort time series data by year
+    indicator.timeSeriesData.sort((a, b) => 
+      parseInt(a.year) - parseInt(b.year)
+    );
+
+    // Sort disaggregation data within each time series point
+    indicator.timeSeriesData.forEach(point => {
+      point.disaggregation.sort((a, b) => 
+        a.category.localeCompare(b.category) || 
+        a.value.localeCompare(b.value)
+      );
+    });
+
+    // Additional validation
+    if (indicator.timeSeriesData.length === 0) {
+      indicator.warning = 'No time series data available';
+      indicator.status = 'No Data';
+    }
+
+    // Set current value to latest available if not explicitly provided
+    if (isNaN(indicator.current) && indicator.timeSeriesData.length > 0) {
+      const latestData = indicator.timeSeriesData[indicator.timeSeriesData.length - 1];
+      indicator.current = latestData.total;
+      indicator.currentYear = parseInt(latestData.year);
     }
   });
 
@@ -831,6 +981,10 @@ const IndicatorCard: React.FC<IndicatorCardProps> = ({ indicator, onClick }) => 
   );
   
   const getStatusDisplay = () => {
+    if (indicator.status === 'Baseline Only') {
+      return 'Baseline Data Only';
+    }
+    
     if (indicator.status === 'Improving') {
       if (progress < 25) {
         return 'Initial Progress';
@@ -1039,8 +1193,10 @@ const EditIndicatorForm: React.FC<EditIndicatorFormProps> = ({
       formData.current,
       formData.baseline,
       formData.target,
-      formData.indicatorType
+      formData.indicatorType,
+      formData.timeSeriesData // Add this argument
     );
+    
     const updatedIndicator = { ...formData, status: newStatus };
     onSave(updatedIndicator);
   };
