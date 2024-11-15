@@ -391,24 +391,39 @@ class UnitSystem {
   }
 
   static needsTwoDecimals(indicator: string, unit: string, value: number): boolean {
-    // Add conditions for indicators that need 2 decimal places
+    // Check for specific indicators that need 2 decimal places
     if (indicator.includes('ECON-09')) return true; // Gini coefficient
     if (unit.toLowerCase() === 'index' && value < 1) return true;
+    
+    // Add more conditions for other indicators as needed
     return false;
   }
 
+  static isNoData(value: number | null | undefined): boolean {
+    return (
+      value === null || 
+      value === undefined || 
+      isNaN(value) || 
+      value === -999  // Add any other specific no-data values here
+    );
+  }
+
   static formatValue(value: number | null | undefined, unit: string, indicatorId?: string): string {
-    if (value === null || value === undefined || isNaN(value)) {
+    // Check for no data conditions
+    if (this.isNoData(value)) {
       return 'No data';
     }
     
+    // At this point we know value is a number
+    const numericValue = value as number;
+
     // Handle special cases for 2 decimal places
-    if (indicatorId && this.needsTwoDecimals(indicatorId, unit, value)) {
-      return value.toFixed(2);
+    if (indicatorId && this.needsTwoDecimals(indicatorId, unit, numericValue)) {
+      return numericValue.toFixed(2);
     }
-    
+
     // Default to 1 decimal place
-    return value.toFixed(1);
+    return numericValue.toFixed(1);
   }
 
   static calculateProgress(
@@ -417,7 +432,8 @@ class UnitSystem {
     target: number, 
     indicatorType: 'direct' | 'reverse'
   ): number {
-    if (isNaN(current) || isNaN(baseline) || isNaN(target)) {
+    // Return 0 progress if any values are missing or invalid
+    if (this.isNoData(current) || this.isNoData(baseline) || this.isNoData(target)) {
       return 0;
     }
 
@@ -429,6 +445,8 @@ class UnitSystem {
       }
       // Calculate regular progress
       const range = target - baseline;
+      // Avoid division by zero
+      if (range === 0) return 0;
       const achievement = current - baseline;
       return Math.min(100, Math.max(0, (achievement / range) * 100));
     } 
@@ -444,6 +462,8 @@ class UnitSystem {
       }
       // Calculate progress for values between baseline and target
       const range = baseline - target;
+      // Avoid division by zero
+      if (range === 0) return 0;
       const improvement = baseline - current;
       return Math.min(100, Math.max(0, (improvement / range) * 100));
     }
@@ -456,23 +476,22 @@ class UnitSystem {
     indicatorType: 'direct' | 'reverse',
     numberOfYears: number
   ): 'Target Achieved' | 'Improving' | 'Getting Worse' | 'Little or No Change' | 'No Data' | 'Baseline Only' {
-    // First, check if there's only baseline data or no data
+    // Check for no data conditions
+    if (this.isNoData(current) || this.isNoData(baseline) || this.isNoData(target)) {
+      return 'No Data';
+    }
+
+    // Check for baseline only condition
     if (numberOfYears <= 1) {
       return 'Baseline Only';
     }
 
-    // Check for missing critical values
-    if (isNaN(baseline) || isNaN(target)) {
-      return 'No Data';
-    }
-
-    // For indicators with only baseline year,
-    // current should be same as baseline
+    // For indicators with only baseline year
     if (current === baseline) {
       return 'Baseline Only';
     }
 
-    // Only proceed with other checks if we have more than baseline data
+    // Calculate status for indicators with data
     const isTarget = indicatorType === 'direct' ? 
       current >= target : 
       current <= target;
@@ -504,17 +523,9 @@ class UnitSystem {
     }
   }
 
-  static formatValueWithPrecision(
-    value: number | null | undefined, 
-    precision: number = 1
-  ): string {
-    if (value === null || value === undefined || isNaN(value)) {
-      return 'No data';
-    }
-    return value.toFixed(precision);
-  }
-
   static getAppropriateDecimals(value: number): number {
+    if (this.isNoData(value)) return 1;
+    
     // For very small numbers (less than 0.01), use more decimals
     if (Math.abs(value) < 0.01) return 4;
     // For small numbers (less than 0.1), use 3 decimals
@@ -523,6 +534,35 @@ class UnitSystem {
     if (Math.abs(value) < 1) return 2;
     // Default to 1 decimal
     return 1;
+  }
+
+  static formatValueWithPrecision(
+    value: number | null | undefined, 
+    precision: number = 1
+  ): string {
+    if (this.isNoData(value)) {
+      return 'No data';
+    }
+    return (value as number).toFixed(precision);
+  }
+
+  static getStatusDescription(status: string): string {
+    switch (status) {
+      case 'Target Achieved':
+        return 'The indicator has met or exceeded its target value';
+      case 'Improving':
+        return 'The indicator is showing positive progress toward the target';
+      case 'Getting Worse':
+        return 'The indicator is moving away from the target';
+      case 'Little or No Change':
+        return 'The indicator shows minimal change from baseline';
+      case 'No Data':
+        return 'No data is currently available for this indicator';
+      case 'Baseline Only':
+        return 'Only baseline data is available for this indicator';
+      default:
+        return 'Status information is not available';
+    }
   }
 }
 
@@ -1003,6 +1043,27 @@ const DataTable: React.FC<DataTableProps> = ({
     )
   )).sort();
 
+  // If no data
+  const hasNoData = data.length === 0 || data.every(point => 
+    isNaN(point.total) || point.total === null || point.total === -999
+  );
+
+  if (hasNoData) {
+    return (
+      <div className="border rounded-lg p-8">
+        <div className="text-center space-y-3">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-100">
+            <AlertTriangle className="w-6 h-6 text-gray-400" />
+          </div>
+          <div className="text-gray-500">
+            <p className="text-lg font-medium">No Data Available</p>
+            <p className="text-sm">There is currently no data available for this indicator</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Format value with the appropriate decimals
   const formatTableValue = (value: number): string => {
     return UnitSystem.formatValue(value, unit, indicatorId);
@@ -1308,7 +1369,7 @@ const IndicatorOverview: React.FC<IndicatorOverviewProps> = ({ indicator }) => {
 };
 
 const IndicatorCard: React.FC<IndicatorCardProps> = ({ indicator, onClick }) => {
-  // Check if we're declining from baseline despite meeting target
+  // Check for target achieved but declining condition
   const isTargetAchieved = indicator.indicatorType === 'direct' 
     ? indicator.current >= indicator.target 
     : indicator.current <= indicator.target;
@@ -1318,6 +1379,7 @@ const IndicatorCard: React.FC<IndicatorCardProps> = ({ indicator, onClick }) => 
     : indicator.current > indicator.baseline;
 
   const showWarning = isTargetAchieved && isDecliningFromBaseline;
+  const hasNoData = UnitSystem.isNoData(indicator.current);
 
   // Calculate progress for display
   const progress = UnitSystem.calculateProgress(
@@ -1328,30 +1390,25 @@ const IndicatorCard: React.FC<IndicatorCardProps> = ({ indicator, onClick }) => 
   );
 
   const getStatusDisplay = () => {
-    if (indicator.timeSeriesData.length <= 1) {
-      return 'Baseline Data Only';
-    }
+    if (hasNoData) return 'No Data';
+    if (indicator.timeSeriesData.length <= 1) return 'Baseline Data Only';
     
     if (indicator.status === 'Target Achieved' && isDecliningFromBaseline) {
       return 'Target Achieved but Declining';
     }
     
     if (indicator.status === 'Improving') {
-      if (progress < 25) {
-        return 'Initial Progress';
-      } else if (progress < 50) {
-        return 'Making Progress';
-      } else if (progress < 75) {
-        return 'Significant Progress';
-      } else {
-        return 'Near Target';
-      }
+      if (progress < 25) return 'Initial Progress';
+      if (progress < 50) return 'Making Progress';
+      if (progress < 75) return 'Significant Progress';
+      return 'Near Target';
     }
+    
     return indicator.status;
   };
 
   const getStatusStyles = () => {
-    if (indicator.timeSeriesData.length <= 1) {
+    if (hasNoData || indicator.timeSeriesData.length <= 1) {
       return {
         container: 'bg-gray-100 text-gray-800 border border-gray-200',
         dot: 'bg-gray-500'
@@ -1389,16 +1446,11 @@ const IndicatorCard: React.FC<IndicatorCardProps> = ({ indicator, onClick }) => 
     }
   };
 
-  const formatValue = (value: number): string => {
-    if (isNaN(value)) return 'No data';
-    return value.toFixed(1);
-  };
-
   const statusStyles = getStatusStyles();
 
   return (
     <Card 
-      className="mb-4 cursor-pointer hover:shadow-md transition-shadow"
+      className={`mb-4 cursor-pointer hover:shadow-md transition-shadow ${hasNoData ? 'opacity-75' : ''}`}
       onClick={onClick}
     >
       <CardContent className="p-4">
@@ -1434,9 +1486,11 @@ const IndicatorCard: React.FC<IndicatorCardProps> = ({ indicator, onClick }) => 
             </div>
             <div className="flex items-baseline gap-1">
               <span className="text-lg font-semibold">
-                {formatValue(indicator.target)}
+                {UnitSystem.formatValue(indicator.target, indicator.unit, indicator.id)}
               </span>
-              <span className="text-sm text-gray-500">{indicator.unit}</span>
+              {!UnitSystem.isNoData(indicator.target) && (
+                <span className="text-sm text-gray-500">{indicator.unit}</span>
+              )}
             </div>
           </div>
 
@@ -1446,13 +1500,17 @@ const IndicatorCard: React.FC<IndicatorCardProps> = ({ indicator, onClick }) => 
               <div className="p-2 bg-gray-50 rounded-full">
                 <Activity className="w-4 h-4" />
               </div>
-              <span className="text-sm">Current ({indicator.currentYear || 'N/A'})</span>
+              <span className="text-sm">
+                Current {indicator.currentYear ? `(${indicator.currentYear})` : ''}
+              </span>
             </div>
             <div className="flex items-baseline gap-1">
               <span className="text-lg font-semibold">
-                {formatValue(indicator.current)}
+                {UnitSystem.formatValue(indicator.current, indicator.unit, indicator.id)}
               </span>
-              <span className="text-sm text-gray-500">{indicator.unit}</span>
+              {!hasNoData && (
+                <span className="text-sm text-gray-500">{indicator.unit}</span>
+              )}
             </div>
           </div>
 
@@ -1466,24 +1524,34 @@ const IndicatorCard: React.FC<IndicatorCardProps> = ({ indicator, onClick }) => 
             </div>
             <div className="flex items-baseline gap-1">
               <span className="text-lg font-semibold">
-                {formatValue(indicator.baseline)}
+                {UnitSystem.formatValue(indicator.baseline, indicator.unit, indicator.id)}
               </span>
-              <span className="text-sm text-gray-500">{indicator.unit}</span>
+              {!UnitSystem.isNoData(indicator.baseline) && (
+                <span className="text-sm text-gray-500">{indicator.unit}</span>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Progress bar section with progress number */}
-                <div className="space-y-2">
+        {/* Progress bar section */}
+        <div className="space-y-2">
           <div className="flex justify-between items-center mb-1">
             <span className="text-sm text-gray-600">Progress</span>
-            <span className="text-sm font-medium">{progress.toFixed(1)}%</span>
+            {!hasNoData && (
+              <span className="text-sm font-medium">{progress.toFixed(1)}%</span>
+            )}
           </div>
-          <ProgressSegment 
-            progress={progress}
-            status={indicator.status}
-            indicatorType={indicator.indicatorType}
-          />
+          {hasNoData ? (
+            <div className="h-2 bg-gray-200 rounded-full relative overflow-hidden">
+              <div className="absolute inset-0 bg-gray-300 opacity-50"></div>
+            </div>
+          ) : (
+            <ProgressSegment 
+              progress={progress}
+              status={indicator.status}
+              indicatorType={indicator.indicatorType}
+            />
+          )}
           <div className="flex justify-between text-sm text-gray-500">
             <span>Baseline</span>
             <span>{getStatusDisplay()}</span>
@@ -1491,14 +1559,28 @@ const IndicatorCard: React.FC<IndicatorCardProps> = ({ indicator, onClick }) => 
           </div>
         </div>
 
-        {/* Warning message */}
+        {/* Warning messages */}
         {showWarning && (
           <div className="mt-4 text-sm text-amber-600 bg-amber-50 px-3 py-2 rounded-lg flex items-center gap-2">
             <TrendingDown className="w-4 h-4" />
             <span>
               While target is achieved, performance has declined from baseline value of{' '}
-              {formatValue(indicator.baseline)} {indicator.unit}
+              {UnitSystem.formatValue(indicator.baseline, indicator.unit, indicator.id)} {indicator.unit}
             </span>
+          </div>
+        )}
+
+        {hasNoData && (
+          <div className="mt-4 text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded-lg flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-gray-500" />
+            <span>No data is currently available for this indicator</span>
+          </div>
+        )}
+
+        {indicator.warning && !hasNoData && (
+          <div className="mt-4 text-sm text-amber-600 bg-amber-50 px-3 py-2 rounded-lg flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4" />
+            <span>{indicator.warning}</span>
           </div>
         )}
 
@@ -1510,13 +1592,6 @@ const IndicatorCard: React.FC<IndicatorCardProps> = ({ indicator, onClick }) => 
                 {formatCategoryName(type)}
               </span>
             ))}
-          </div>
-        )}
-
-        {/* Warning badge for general warnings */}
-        {indicator.warning && (
-          <div className="mt-4 text-sm text-amber-600 bg-amber-50 px-3 py-2 rounded-lg">
-            {indicator.warning}
           </div>
         )}
       </CardContent>
