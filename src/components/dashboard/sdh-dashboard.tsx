@@ -99,7 +99,10 @@ const STATUS_FILTERS: StatusFilter[] = [
       ring: 'ring-gray-400',
     },
     getCount: (stats) => stats.noData,
-    filterFn: (indicator) => indicator.status === 'No Data',
+    filterFn: (indicator) => 
+      UnitSystem.isNoData(indicator.current) || 
+      UnitSystem.isNoData(indicator.baseline) || 
+      UnitSystem.isNoData(indicator.target)
   },
   {
     label: 'Baseline Only',
@@ -2520,10 +2523,18 @@ export default function SDHDashboard() {
                   .filter(i => i.domain === selectedDomain)
                   .filter(i => {
                     const activeFilter = STATUS_FILTERS.find(f => f.value === statusFilter);
-                    // Double-check baseline only case before applying filter
+
+                     // Special handling for No Data cases
+                        if (UnitSystem.isNoData(i.current) || 
+                        UnitSystem.isNoData(i.baseline) || 
+                        UnitSystem.isNoData(i.target)) {
+                      return activeFilter?.value === 'no-data' || activeFilter?.value === 'all';
+                    }
+                    // Handle baseline only case
                     if (i.timeSeriesData.length <= 1) {
                       return activeFilter?.value === 'baseline-only' || activeFilter?.value === 'all';
                     }
+
                     return activeFilter ? activeFilter.filterFn(i) : true;
                   })
                   .map(indicator => (
