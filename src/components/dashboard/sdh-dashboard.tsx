@@ -168,12 +168,13 @@ interface DataChartProps {
   data: TimeSeriesDataPoint[];
   disaggregationTypes: string[];
   unit: string;
+  indicatorId: string;  
 }
-
 interface DataTableProps {
-  data: TimeSeriesDataPoint[];
-  disaggregationTypes: string[];
-  unit: string;
+    data: TimeSeriesDataPoint[];
+    disaggregationTypes: string[];
+    unit: string;
+    indicatorId: string;  
 }
 
 interface IndicatorOverviewProps {
@@ -389,11 +390,25 @@ class UnitSystem {
     return unit === '%' || unit.toLowerCase().includes('percent');
   }
 
-  static formatValue(value: number, precision: number = 1): string {
-    if (isNaN(value)) {
+  static needsTwoDecimals(indicator: string, unit: string, value: number): boolean {
+    // Add conditions for indicators that need 2 decimal places
+    if (indicator.includes('ECON-09')) return true; // Gini coefficient
+    if (unit.toLowerCase() === 'index' && value < 1) return true;
+    return false;
+  }
+
+  static formatValue(value: number | null | undefined, unit: string, indicatorId?: string): string {
+    if (value === null || value === undefined || isNaN(value)) {
       return 'No data';
     }
-    return value.toFixed(precision);
+    
+    // Handle special cases for 2 decimal places
+    if (indicatorId && this.needsTwoDecimals(indicatorId, unit, value)) {
+      return value.toFixed(2);
+    }
+    
+    // Default to 1 decimal place
+    return value.toFixed(1);
   }
 
   static calculateProgress(
@@ -440,53 +455,74 @@ class UnitSystem {
     target: number,
     indicatorType: 'direct' | 'reverse',
     numberOfYears: number
-): Indicator['status'] {
+  ): 'Target Achieved' | 'Improving' | 'Getting Worse' | 'Little or No Change' | 'No Data' | 'Baseline Only' {
     // First, check if there's only baseline data or no data
     if (numberOfYears <= 1) {
-        return 'Baseline Only';
+      return 'Baseline Only';
     }
 
     // Check for missing critical values
     if (isNaN(baseline) || isNaN(target)) {
-        return 'No Data';
+      return 'No Data';
     }
 
-    // For indicators with only baseline year (like ECON-04),
+    // For indicators with only baseline year,
     // current should be same as baseline
     if (current === baseline) {
-        return 'Baseline Only';
+      return 'Baseline Only';
     }
 
     // Only proceed with other checks if we have more than baseline data
     const isTarget = indicatorType === 'direct' ? 
-        current >= target : 
-        current <= target;
+      current >= target : 
+      current <= target;
 
     if (isTarget) {
-        const isDecline = indicatorType === 'direct' ?
-            current < baseline :
-            current > baseline;
+      const isDecline = indicatorType === 'direct' ?
+        current < baseline :
+        current > baseline;
 
-        if (isDecline) {
-            return 'Getting Worse';
-        }
-        return 'Target Achieved';
+      if (isDecline) {
+        return 'Getting Worse';
+      }
+      return 'Target Achieved';
     }
 
     const isImproving = indicatorType === 'direct' ? 
-        current >= baseline : 
-        current <= baseline;
+      current >= baseline : 
+      current <= baseline;
 
     if (!isImproving) {
-        return 'Getting Worse';
+      return 'Getting Worse';
     }
 
     const progress = this.calculateProgress(current, baseline, target, indicatorType);
     if (progress >= 25) {
-        return 'Improving';
+      return 'Improving';
     } else {
-        return 'Little or No Change';
+      return 'Little or No Change';
     }
+  }
+
+  static formatValueWithPrecision(
+    value: number | null | undefined, 
+    precision: number = 1
+  ): string {
+    if (value === null || value === undefined || isNaN(value)) {
+      return 'No data';
+    }
+    return value.toFixed(precision);
+  }
+
+  static getAppropriateDecimals(value: number): number {
+    // For very small numbers (less than 0.01), use more decimals
+    if (Math.abs(value) < 0.01) return 4;
+    // For small numbers (less than 0.1), use 3 decimals
+    if (Math.abs(value) < 0.1) return 3;
+    // For numbers less than 1, use 2 decimals
+    if (Math.abs(value) < 1) return 2;
+    // Default to 1 decimal
+    return 1;
   }
 }
 
@@ -950,13 +986,15 @@ const DataChart: React.FC<DataChartProps> = ({
 const DataTable: React.FC<DataTableProps> = ({ 
   data, 
   disaggregationTypes,
-  unit
+  unit,
+  indicatorId
 }) => {
   const [selectedDisaggregation, setSelectedDisaggregation] = useState(disaggregationTypes[0]);
 
   // Sort data by year
   const sortedData = [...data].sort((a, b) => parseInt(a.year) - parseInt(b.year));
 
+  // Get unique values for selected disaggregation
   const disaggregationValues = Array.from(new Set(
     data.flatMap(point => 
       point.disaggregation
@@ -965,8 +1003,14 @@ const DataTable: React.FC<DataTableProps> = ({
     )
   )).sort();
 
+  // Format value with the appropriate decimals
+  const formatTableValue = (value: number): string => {
+    return UnitSystem.formatValue(value, unit, indicatorId);
+  };
+
   return (
     <div>
+      {/* Disaggregation Type Selector */}
       {disaggregationTypes.length > 0 && (
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -986,44 +1030,147 @@ const DataTable: React.FC<DataTableProps> = ({
         </div>
       )}
 
-      <div className="overflow-x-auto">
-        <table className="w-full">
+      {/* Data Table */}
+      <div className="overflow-x-auto border rounded-lg">
+        <table className="min-w-full divide-y divide-gray-200">
+          {/* Table Header */}
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-4 py-2 text-left">Year</th>
-              <th className="px-4 py-2 text-left">Total</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Year
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Total
+              </th>
               {disaggregationValues.map(value => (
-                <th key={value} className="px-4 py-2 text-left">
+                <th 
+                  key={value} 
+                  scope="col" 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
                   {formatCategoryName(value)}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody>
-            {sortedData.map((point, index) => (
-              <tr key={point.year} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                <td className="px-4 py-2">{point.year}</td>
-                <td className="px-4 py-2">
-                  {formatValue(point.total, unit)}
+
+          {/* Table Body */}
+          <tbody className="bg-white divide-y divide-gray-200">
+            {sortedData.map((point, rowIndex) => (
+              <tr 
+                key={point.year}
+                className={rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
+              >
+                {/* Year Column */}
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {point.year}
                 </td>
+
+                {/* Total Column */}
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <div className="flex items-center space-x-1">
+                    <span>{formatTableValue(point.total)}</span>
+                    <span className="text-gray-500 text-xs">{unit}</span>
+                  </div>
+                </td>
+
+                {/* Disaggregation Columns */}
                 {disaggregationValues.map(value => {
                   const disaggregationPoint = point.disaggregation.find(
                     d => d.category === selectedDisaggregation && d.value === value
                   );
+                  
                   return (
-                    <td key={value} className="px-4 py-2">
-                      {disaggregationPoint ? formatValue(disaggregationPoint.percentage, unit) : '-'}
+                    <td 
+                      key={value} 
+                      className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+                    >
+                      {disaggregationPoint ? (
+                        <div className="flex items-center space-x-1">
+                          <span>
+                            {formatTableValue(disaggregationPoint.percentage)}
+                          </span>
+                          <span className="text-gray-500 text-xs">{unit}</span>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
                     </td>
                   );
                 })}
               </tr>
             ))}
           </tbody>
+
+          {/* Optional: Table Footer for Summary Statistics */}
+          <tfoot className="bg-gray-50">
+            <tr>
+              <td className="px-6 py-3 text-sm font-medium text-gray-900">
+                Summary
+              </td>
+              <td className="px-6 py-3 text-sm text-gray-900">
+                {sortedData.length > 0 && (
+                  <div className="flex items-center space-x-1">
+                    <span>
+                      {formatTableValue(
+                        sortedData[sortedData.length - 1].total
+                      )}
+                    </span>
+                    <span className="text-gray-500 text-xs">{unit}</span>
+                  </div>
+                )}
+              </td>
+              {disaggregationValues.map(value => (
+                <td key={value} className="px-6 py-3 text-sm text-gray-900">
+                  {sortedData.length > 0 && (
+                    (() => {
+                      const latestPoint = sortedData[sortedData.length - 1]
+                        .disaggregation.find(
+                          d => d.category === selectedDisaggregation && 
+                              d.value === value
+                        );
+                      
+                      return latestPoint ? (
+                        <div className="flex items-center space-x-1">
+                          <span>
+                            {formatTableValue(latestPoint.percentage)}
+                          </span>
+                          <span className="text-gray-500 text-xs">{unit}</span>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      );
+                    })()
+                  )}
+                </td>
+              ))}
+            </tr>
+          </tfoot>
         </table>
+      </div>
+
+      {/* No Data Message */}
+      {sortedData.length === 0 && (
+        <div className="text-center py-8 text-gray-500">
+          No data available
+        </div>
+      )}
+
+      {/* Legend/Info Section */}
+      <div className="mt-4 text-xs text-gray-500">
+        <ul className="list-disc pl-4 space-y-1">
+          <li>Values are shown in {unit}</li>
+          <li>"-" indicates no data available for that period</li>
+          {disaggregationTypes.length > 0 && (
+            <li>
+              Use the dropdown above to switch between different disaggregation views
+            </li>
+          )}
+        </ul>
       </div>
     </div>
   );
-};
+}
 
 // IndicatorOverview Component
 const IndicatorOverview: React.FC<IndicatorOverviewProps> = ({ indicator }) => {
@@ -2083,18 +2230,20 @@ export default function SDHDashboard() {
                 </div>
 
                 {detailView === 'chart' ? (
-                  <DataChart 
-                    data={selectedIndicator.timeSeriesData}
-                    disaggregationTypes={selectedIndicator.disaggregationTypes}
-                    unit={selectedIndicator.unit}
-                  />
-                ) : (
-                  <DataTable 
-                    data={selectedIndicator.timeSeriesData}
-                    disaggregationTypes={selectedIndicator.disaggregationTypes}
-                    unit={selectedIndicator.unit}
-                  />
-                )}
+                <DataChart 
+                  data={selectedIndicator.timeSeriesData}
+                  disaggregationTypes={selectedIndicator.disaggregationTypes}
+                  unit={selectedIndicator.unit}
+                  indicatorId={selectedIndicator.id}
+                />
+              ) : (
+                <DataTable 
+                  data={selectedIndicator.timeSeriesData}
+                  disaggregationTypes={selectedIndicator.disaggregationTypes}
+                  unit={selectedIndicator.unit}
+                  indicatorId={selectedIndicator.id}
+                />
+              )}
               </CardContent>
             </Card>
           </TabsContent>
