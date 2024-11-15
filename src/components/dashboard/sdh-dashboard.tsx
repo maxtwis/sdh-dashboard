@@ -2488,65 +2488,6 @@ export default function SDHDashboard() {
           ))}
         </div>
   
-        {/* Active Filters Section */}
-{(statusFilter !== 'all' || selectedSubdomain) && (
-  <div className="mb-4 space-y-2">
-        {/* Status Filter Indicator */}
-        {statusFilter !== 'all' && (
-          <div className="flex items-center gap-2">
-            <div className="text-sm text-gray-600">
-              Status filter: 
-              <span className="font-medium ml-1">
-                {STATUS_FILTERS.find(f => f.value === statusFilter)?.label}
-              </span>
-            </div>
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={() => setStatusFilter('all')}
-            >
-              Clear Status
-            </Button>
-          </div>
-        )}
-
-        {/* Subdomain Filter Indicator */}
-        {selectedSubdomain && (
-          <div className="flex items-center gap-2">
-            <div className="text-sm text-gray-600">
-              Subdomain filter:
-              <span className="font-medium ml-1">
-                {selectedSubdomain}
-              </span>
-            </div>
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={() => setSelectedSubdomain('')}
-            >
-              Clear Subdomain
-            </Button>
-          </div>
-        )}
-
-        {/* Clear All Filters Button */}
-        {statusFilter !== 'all' && selectedSubdomain && (
-          <div className="flex items-center gap-2">
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => {
-                setStatusFilter('all');
-                setSelectedSubdomain('');
-              }}
-            >
-              Clear All Filters
-            </Button>
-          </div>
-        )}
-      </div>
-    )}
-  
       {/* Main content area */}
 <div className="flex gap-6">
   {/* Domain navigation */}
