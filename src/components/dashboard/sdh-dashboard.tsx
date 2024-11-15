@@ -1160,7 +1160,7 @@ const DataTable: React.FC<DataTableProps> = ({
       <div className="mt-4 text-xs text-gray-500">
         <ul className="list-disc pl-4 space-y-1">
           <li>Values are shown in {unit}</li>
-          <li>"-" indicates no data available for that period</li>
+          <li>&quot;-&quot; indicates no data available for that period</li>
           {disaggregationTypes.length > 0 && (
             <li>
               Use the dropdown above to switch between different disaggregation views
