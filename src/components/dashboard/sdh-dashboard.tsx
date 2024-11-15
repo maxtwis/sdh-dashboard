@@ -100,9 +100,11 @@ const STATUS_FILTERS: StatusFilter[] = [
     },
     getCount: (stats) => stats.noData,
     filterFn: (indicator) => 
+      indicator.status === 'No Data' ||
       UnitSystem.isNoData(indicator.current) || 
       UnitSystem.isNoData(indicator.baseline) || 
-      UnitSystem.isNoData(indicator.target)
+      UnitSystem.isNoData(indicator.target) ||
+      indicator.timeSeriesData.length === 0
   },
   {
     label: 'Baseline Only',
@@ -1993,13 +1995,34 @@ export default function SDHDashboard() {
   const calculateSummaryStats = (): SummaryStats => {
     const total = indicators.length;
     
-    // First, separate baseline-only indicators
-    const baselineOnly = indicators.filter(i => 
-      i.timeSeriesData.length <= 1 || i.status === 'Baseline Only'
+    // First identify indicators with no data
+    const noData = indicators.filter(i => 
+      i.status === 'No Data' || // Check status
+      UnitSystem.isNoData(i.current) || 
+      UnitSystem.isNoData(i.baseline) || 
+      UnitSystem.isNoData(i.target) ||
+      (i.timeSeriesData.length === 0) // Also check if no time series data
     ).length;
     
-    // Only consider other statuses for indicators with more than one year of data
-    const multiYearIndicators = indicators.filter(i => i.timeSeriesData.length > 1);
+    // Then get indicators with valid data
+    const indicatorsWithData = indicators.filter(i => 
+      i.status !== 'No Data' &&
+      !UnitSystem.isNoData(i.current) && 
+      !UnitSystem.isNoData(i.baseline) && 
+      !UnitSystem.isNoData(i.target)
+    );
+    
+    // Separate baseline only indicators
+    const baselineOnly = indicators.filter(i => 
+      i.status === 'Baseline Only' || 
+      i.timeSeriesData.length <= 1
+    ).length;
+    
+    // Calculate other stats only from valid data indicators
+    const multiYearIndicators = indicatorsWithData.filter(i => 
+      i.timeSeriesData.length > 1 && 
+      i.status !== 'Baseline Only'
+    );
     
     const targetAchieved = multiYearIndicators.filter(i => 
       i.status === 'Target Achieved' && 
@@ -2021,10 +2044,6 @@ export default function SDHDashboard() {
     
     const littleChange = multiYearIndicators.filter(i => 
       i.status === 'Little or No Change'
-    ).length;
-    
-    const noData = indicators.filter(i => 
-      i.status === 'No Data'
     ).length;
   
     return {
