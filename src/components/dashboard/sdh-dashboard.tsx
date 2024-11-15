@@ -2610,10 +2610,9 @@ export default function SDHDashboard() {
   <div className="flex-1">
     {selectedDomain && indicators.length > 0 ? (
       <>
-        {/* Active Filters Section */}
+        {/* Single Active Filters Section */}
         {(statusFilter !== 'all' || selectedSubdomain) && (
-          <div className="mb-4 space-y-2">
-            {/* Status Filter Indicator */}
+          <div className="mb-4 flex flex-wrap items-center gap-4">
             {statusFilter !== 'all' && (
               <div className="flex items-center gap-2">
                 <div className="text-sm text-gray-600">
@@ -2632,7 +2631,6 @@ export default function SDHDashboard() {
               </div>
             )}
 
-            {/* Subdomain Filter Indicator */}
             {selectedSubdomain && (
               <div className="flex items-center gap-2">
                 <div className="text-sm text-gray-600">
@@ -2651,20 +2649,17 @@ export default function SDHDashboard() {
               </div>
             )}
 
-            {/* Clear All Filters Button */}
             {statusFilter !== 'all' && selectedSubdomain && (
-              <div className="flex items-center gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => {
-                    setStatusFilter('all');
-                    setSelectedSubdomain('');
-                  }}
-                >
-                  Clear All Filters
-                </Button>
-              </div>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  setStatusFilter('all');
+                  setSelectedSubdomain('');
+                }}
+              >
+                Clear All Filters
+              </Button>
             )}
           </div>
         )}
