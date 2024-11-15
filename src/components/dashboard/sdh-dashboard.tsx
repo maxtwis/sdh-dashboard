@@ -1925,6 +1925,7 @@ const EditIndicatorForm: React.FC<EditIndicatorFormProps> = ({
 export default function SDHDashboard() {
   const [indicators, setIndicators] = useState<Indicator[]>([]);
   const [selectedDomain, setSelectedDomain] = useState<string>('');
+  const [selectedSubdomain, setSelectedSubdomain] = useState<string>('');
   const [selectedIndicator, setSelectedIndicator] = useState<Indicator | null>(null);
   const [view, setView] = useState<'dashboard' | 'detail'>('dashboard');
   const [detailView, setDetailView] = useState<'chart' | 'table'>('chart');
@@ -2487,11 +2488,14 @@ export default function SDHDashboard() {
           ))}
         </div>
   
-        {/* Filter status indicator */}
+        {/* Active Filters Section */}
+{(statusFilter !== 'all' || selectedSubdomain) && (
+  <div className="mb-4 space-y-2">
+        {/* Status Filter Indicator */}
         {statusFilter !== 'all' && (
-          <div className="mb-4 flex items-center gap-2">
+          <div className="flex items-center gap-2">
             <div className="text-sm text-gray-600">
-              Filtering by: 
+              Status filter: 
               <span className="font-medium ml-1">
                 {STATUS_FILTERS.find(f => f.value === statusFilter)?.label}
               </span>
@@ -2501,79 +2505,208 @@ export default function SDHDashboard() {
               size="sm"
               onClick={() => setStatusFilter('all')}
             >
-              Clear Filter
+              Clear Status
             </Button>
           </div>
         )}
-  
-        {/* Main content area */}
-        <div className="flex gap-6">
-          {/* Domain navigation */}
-          <Card className="w-64">
-            <CardHeader>
-              <CardTitle>Domains & Subdomains</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {indicators.length > 0 ? (
-                Array.from(new Set(indicators.map(i => i.domain))).map(domain => (
-                  <button
-                    key={domain}
-                    className={`flex items-center justify-between w-full p-2 text-left rounded-lg hover:bg-gray-100 ${
-                      selectedDomain === domain ? 'bg-blue-50 text-blue-700' : ''
-                    }`}
-                    onClick={() => setSelectedDomain(domain)}
-                  >
-                    <span className="text-sm">{domain}</span>
-                    {/* Updated ChevronRight with consistent size */}
-                    <ChevronRight className="w-4 h-4 shrink-0" />
-                  </button>
-                ))
-              ) : (
-                <p className="text-sm text-gray-500">No data loaded</p>
-              )}
-            </CardContent>
-          </Card>
-  
-          {/* Indicator cards */}
-          <div className="flex-1">
-            {selectedDomain && indicators.length > 0 ? (
-              <>
-                {indicators
-                  .filter(i => i.domain === selectedDomain)
-                  .filter(i => {
-                    const activeFilter = STATUS_FILTERS.find(f => f.value === statusFilter);
 
-                     // Special handling for No Data cases
-                        if (UnitSystem.isNoData(i.current) || 
-                        UnitSystem.isNoData(i.baseline) || 
-                        UnitSystem.isNoData(i.target)) {
-                      return activeFilter?.value === 'no-data' || activeFilter?.value === 'all';
-                    }
-                    // Handle baseline only case
-                    if (i.timeSeriesData.length <= 1) {
-                      return activeFilter?.value === 'baseline-only' || activeFilter?.value === 'all';
-                    }
+        {/* Subdomain Filter Indicator */}
+        {selectedSubdomain && (
+          <div className="flex items-center gap-2">
+            <div className="text-sm text-gray-600">
+              Subdomain filter:
+              <span className="font-medium ml-1">
+                {selectedSubdomain}
+              </span>
+            </div>
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => setSelectedSubdomain('')}
+            >
+              Clear Subdomain
+            </Button>
+          </div>
+        )}
 
-                    return activeFilter ? activeFilter.filterFn(i) : true;
-                  })
-                  .map(indicator => (
-                    <IndicatorCard
-                      key={indicator.id}
-                      indicator={indicator}
-                      onClick={() => {
-                        setSelectedIndicator(indicator);
-                        setView('detail');
-                      }}
-                    />
+        {/* Clear All Filters Button */}
+        {statusFilter !== 'all' && selectedSubdomain && (
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => {
+                setStatusFilter('all');
+                setSelectedSubdomain('');
+              }}
+            >
+              Clear All Filters
+            </Button>
+          </div>
+        )}
+      </div>
+    )}
+  
+      {/* Main content area */}
+<div className="flex gap-6">
+  {/* Domain navigation */}
+  <Card className="w-64">
+    <CardHeader>
+      <CardTitle>Domains & Subdomains</CardTitle>
+    </CardHeader>
+    <CardContent className="p-0">
+      {indicators.length > 0 ? (
+        (() => {
+          // Get unique domains and their subdomains
+          const domainMap = indicators.reduce<Record<string, Set<string>>>((acc, indicator) => {
+            if (!acc[indicator.domain]) {
+              acc[indicator.domain] = new Set();
+            }
+            acc[indicator.domain].add(indicator.subdomain);
+            return acc;
+          }, {});
+
+          return Object.entries(domainMap).map(([domain, subdomains]: [string, Set<string>]) => (
+            <div key={domain} className="border-b last:border-b-0">
+              <button
+                className={`flex items-center justify-between w-full p-3 text-left hover:bg-gray-100 ${
+                  selectedDomain === domain ? 'bg-blue-50 text-blue-700' : ''
+                }`}
+                onClick={() => {
+                  setSelectedDomain(domain);
+                  setSelectedSubdomain(''); // Clear subdomain when domain changes
+                }}
+              >
+                <span className="text-sm font-medium">{domain}</span>
+                <ChevronRight className="w-4 h-4 shrink-0" />
+              </button>
+              {selectedDomain === domain && (
+                <div className="bg-gray-50">
+                  {Array.from(subdomains).map((subdomain: string) => (
+                    <button
+                      key={subdomain}
+                      className={`w-full p-2 pl-6 text-left text-sm hover:bg-gray-100 ${
+                        selectedSubdomain === subdomain 
+                          ? 'bg-blue-50 text-blue-700' 
+                          : 'text-gray-600'
+                      }`}
+                      onClick={() => setSelectedSubdomain(subdomain)}
+                    >
+                      {subdomain}
+                    </button>
                   ))}
-              </>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                {indicators.length === 0 ? 
-                  'Please import data to view indicators' : 
-                  'Select a domain to view indicators'
-                }
+                </div>
+              )}
+            </div>
+          ));
+        })()
+      ) : (
+        <p className="text-sm text-gray-500 p-3">No data loaded</p>
+      )}
+    </CardContent>
+  </Card>
+
+  {/* Indicator cards */}
+  <div className="flex-1">
+    {selectedDomain && indicators.length > 0 ? (
+      <>
+        {/* Active Filters Section */}
+        {(statusFilter !== 'all' || selectedSubdomain) && (
+          <div className="mb-4 space-y-2">
+            {/* Status Filter Indicator */}
+            {statusFilter !== 'all' && (
+              <div className="flex items-center gap-2">
+                <div className="text-sm text-gray-600">
+                  Status filter: 
+                  <span className="font-medium ml-1">
+                    {STATUS_FILTERS.find(f => f.value === statusFilter)?.label}
+                  </span>
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => setStatusFilter('all')}
+                >
+                  Clear Status
+                </Button>
               </div>
+            )}
+
+            {/* Subdomain Filter Indicator */}
+            {selectedSubdomain && (
+              <div className="flex items-center gap-2">
+                <div className="text-sm text-gray-600">
+                  Subdomain filter:
+                  <span className="font-medium ml-1">
+                    {selectedSubdomain}
+                  </span>
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => setSelectedSubdomain('')}
+                >
+                  Clear Subdomain
+                </Button>
+              </div>
+            )}
+
+            {/* Clear All Filters Button */}
+            {statusFilter !== 'all' && selectedSubdomain && (
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => {
+                    setStatusFilter('all');
+                    setSelectedSubdomain('');
+                  }}
+                >
+                  Clear All Filters
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Indicators List */}
+        {indicators
+          .filter(i => i.domain === selectedDomain)
+          .filter(i => !selectedSubdomain || i.subdomain === selectedSubdomain)
+          .filter(i => {
+            const activeFilter = STATUS_FILTERS.find(f => f.value === statusFilter);
+
+            // Special handling for No Data cases
+            if (UnitSystem.isNoData(i.current) || 
+                UnitSystem.isNoData(i.baseline) || 
+                UnitSystem.isNoData(i.target)) {
+              return activeFilter?.value === 'no-data' || activeFilter?.value === 'all';
+            }
+            // Handle baseline only case
+            if (i.timeSeriesData.length <= 1) {
+              return activeFilter?.value === 'baseline-only' || activeFilter?.value === 'all';
+            }
+
+            return activeFilter ? activeFilter.filterFn(i) : true;
+          })
+          .map(indicator => (
+            <IndicatorCard
+              key={indicator.id}
+              indicator={indicator}
+              onClick={() => {
+                setSelectedIndicator(indicator);
+                setView('detail');
+              }}
+            />
+          ))}
+      </>
+    ) : (
+      <div className="text-center py-8 text-gray-500">
+        {indicators.length === 0 ? 
+          'Please import data to view indicators' : 
+          'Select a domain to view indicators'
+        }
+      </div>
             )}
           </div>
         </div>
