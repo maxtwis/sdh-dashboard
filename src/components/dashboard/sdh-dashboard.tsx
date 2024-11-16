@@ -2416,210 +2416,271 @@ export default function SDHDashboard() {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Blue header - keep this unchanged */}
-      <div className="bg-[#1A56DB] text-white px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <div className="h-8 w-8 bg-white rounded flex items-center justify-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-[#1A56DB]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <h1 className="text-xl font-semibold">Social Determinants of Health Equity (SDHE) Dashboard</h1>
+  // Dashboard view
+return (
+  <div className="min-h-screen bg-gray-50">
+    {/* Blue header */}
+    <div className="bg-[#1A56DB] text-white px-4 py-3 flex items-center justify-between">
+      <div className="flex items-center space-x-4">
+        <div className="h-8 w-8 bg-white rounded flex items-center justify-center">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-[#1A56DB]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
         </div>
-        <div>
-          <Button
-            variant="outline"
-            onClick={() => setIsAdmin(!isAdmin)}
-            className={`bg-white text-[#1A56DB] hover:bg-blue-50 border-none ${isAdmin ? 'bg-blue-50' : ''}`}
-          >
-            {isAdmin ? 'Admin Mode' : 'View Mode'}
-          </Button>
-        </div>
+        <h1 className="text-xl font-semibold">Social Determinants of Health Equity (SDHE) Dashboard</h1>
       </div>
-  
-      <div className="p-6 pt-8">
-        {/* Admin import section - keep this unchanged */}
-        {isAdmin && (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle>Import Data</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-4">
-                <input
-                  type="file"
-                  accept=".csv"
-                  onChange={handleFileUpload}
-                  className="block w-full text-sm text-gray-500
-                    file:mr-4 file:py-2 file:px-4
-                    file:rounded-lg file:border-0
-                    file:text-sm file:font-semibold
-                    file:bg-blue-50 file:text-blue-700
-                    hover:file:bg-blue-100"
-                />
-                {fileName && (
-                  <span className="text-sm text-gray-500">
-                    File loaded: {fileName}
-                  </span>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-   
-        {/* Summary statistics */}      
-        <div className="grid grid-cols-4 gap-6 mb-6">
-          {STATUS_FILTERS.map((filter) => (
-            <Card 
-              key={filter.value}
-              className={`cursor-pointer transition-all hover:bg-gray-50 ${
-                statusFilter === filter.value ? `ring-2 ${filter.color.ring}` : ''
-              }`}
-              onClick={() => handleStatusFilter(filter.value)}
-            >
-              <CardHeader>
-                <CardTitle className={`text-sm ${filter.color.text}`}>
-                  {filter.label}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className={`text-2xl font-bold ${filter.color.text}`}>
-                  {filter.getCount(stats)}
-                </div>
-                {filter.value === 'target-achieved' && stats.targetAchievedButDeclining > 0 && (
-                  <div className="text-xs text-amber-600 mt-1">
-                    ({stats.targetAchievedButDeclining} declining from baseline)
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-    
-          {/* Main content area */}
-          <div className="flex-1">
-            {/* Single Active Filters Section */}
-            {(statusFilter !== 'all' || selectedSubdomain) && (
-              <div className="mb-4 flex flex-wrap items-center gap-4">
-                {statusFilter !== 'all' && (
-                  <div className="flex items-center gap-2">
-                    <div className="text-sm text-gray-600">
-                      Status filter: 
-                      <span className="font-medium ml-1">
-                        {STATUS_FILTERS.find(f => f.value === statusFilter)?.label}
-                      </span>
-                    </div>
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => setStatusFilter('all')}
-                    >
-                      Clear Status
-                    </Button>
-                  </div>
-                )}
-
-                {selectedSubdomain && (
-                  <div className="flex items-center gap-2">
-                    <div className="text-sm text-gray-600">
-                      Subdomain filter:
-                      <span className="font-medium ml-1">
-                        {selectedSubdomain}
-                      </span>
-                    </div>
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => setSelectedSubdomain('')}
-                    >
-                      Clear Subdomain
-                    </Button>
-                  </div>
-                )}
-
-                {statusFilter !== 'all' && selectedSubdomain && (
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => {
-                      setStatusFilter('all');
-                      setSelectedSubdomain('');
-                    }}
-                  >
-                    Clear All Filters
-                  </Button>
-                )}
-              </div>
-            )}
-
-            {/* Indicators List */}
-            {indicators.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                Please import data to view indicators
-              </div>
-            ) : (
-              <>
-                {/* Filter and display indicators */}
-                {indicators
-                  .filter(i => {
-                    // First apply status filter
-                    if (statusFilter === 'all') {
-                      // If no status filter, require domain selection
-                      return selectedDomain ? i.domain === selectedDomain : true;
-                    }
-                    
-                    const activeFilter = STATUS_FILTERS.find(f => f.value === statusFilter);
-                    if (!activeFilter) return true;
-
-                    // Special handling for No Data cases
-                    if (UnitSystem.isNoData(i.current) || 
-                        UnitSystem.isNoData(i.baseline) || 
-                        UnitSystem.isNoData(i.target)) {
-                      return activeFilter.value === 'no-data';
-                    }
-                    
-                    // Handle baseline only case
-                    if (i.timeSeriesData.length <= 1) {
-                      return activeFilter.value === 'baseline-only';
-                    }
-
-                    return activeFilter.filterFn(i);
-                  })
-                  .filter(i => {
-                    // Then apply domain/subdomain filter if selected
-                    if (!selectedDomain) return true;
-                    if (!selectedSubdomain) return i.domain === selectedDomain;
-                    return i.domain === selectedDomain && i.subdomain === selectedSubdomain;
-                  })
-                  .map(indicator => (
-                    <IndicatorCard
-                      key={indicator.id}
-                      indicator={indicator}
-                      onClick={() => {
-                        setSelectedIndicator(indicator);
-                        setView('detail');
-                      }}
-                    />
-                  ))}
-
-                {/* Show message if no indicators match filters */}
-                {indicators.filter(i => {
-                  if (statusFilter === 'all') return selectedDomain ? i.domain === selectedDomain : true;
-                  const activeFilter = STATUS_FILTERS.find(f => f.value === statusFilter);
-                  return activeFilter?.filterFn(i) || false;
-                }).length === 0 && (
-                  <div className="text-center py-8 text-gray-500">
-                    {statusFilter !== 'all' 
-                      ? 'No indicators match the selected filters'
-                      : 'Select a domain to view indicators'}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
+      <div>
+        <Button
+          variant="outline"
+          onClick={() => setIsAdmin(!isAdmin)}
+          className={`bg-white text-[#1A56DB] hover:bg-blue-50 border-none ${isAdmin ? 'bg-blue-50' : ''}`}
+        >
+          {isAdmin ? 'Admin Mode' : 'View Mode'}
+        </Button>
       </div>
     </div>
-  );
-} 
+
+    <div className="p-6 pt-8">
+      {/* Admin import section */}
+      {isAdmin && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Import Data</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-4">
+              <input
+                type="file"
+                accept=".csv"
+                onChange={handleFileUpload}
+                className="block w-full text-sm text-gray-500
+                  file:mr-4 file:py-2 file:px-4
+                  file:rounded-lg file:border-0
+                  file:text-sm file:font-semibold
+                  file:bg-blue-50 file:text-blue-700
+                  hover:file:bg-blue-100"
+              />
+              {fileName && (
+                <span className="text-sm text-gray-500">
+                  File loaded: {fileName}
+                </span>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Summary statistics */}
+      <div className="grid grid-cols-4 gap-6 mb-6">
+        {STATUS_FILTERS.map((filter) => (
+          <Card 
+            key={filter.value}
+            className={`cursor-pointer transition-all hover:bg-gray-50 ${
+              statusFilter === filter.value ? `ring-2 ${filter.color.ring}` : ''
+            }`}
+            onClick={() => setStatusFilter(filter.value)}
+          >
+            <CardHeader>
+              <CardTitle className={`text-sm ${filter.color.text}`}>
+                {filter.label}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className={`text-2xl font-bold ${filter.color.text}`}>
+                {filter.getCount(stats)}
+              </div>
+              {filter.value === 'target-achieved' && stats.targetAchievedButDeclining > 0 && (
+                <div className="text-xs text-amber-600 mt-1">
+                  ({stats.targetAchievedButDeclining} declining from baseline)
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Main content area */}
+      <div className="flex gap-6">
+        {/* Domain navigation */}
+        <Card className="w-64">
+          <CardHeader>
+            <CardTitle>Domains & Subdomains</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            {indicators.length > 0 ? (
+              (() => {
+                // Get unique domains and their subdomains
+                const domainMap = indicators.reduce<Record<string, Set<string>>>((acc, indicator) => {
+                  if (!acc[indicator.domain]) {
+                    acc[indicator.domain] = new Set();
+                  }
+                  acc[indicator.domain].add(indicator.subdomain);
+                  return acc;
+                }, {});
+
+                return Object.entries(domainMap).map(([domain, subdomains]) => (
+                  <div key={domain} className="border-b last:border-b-0">
+                    <button
+                      className={`flex items-center justify-between w-full p-3 text-left hover:bg-gray-100 ${
+                        selectedDomain === domain ? 'bg-blue-50 text-blue-700' : ''
+                      }`}
+                      onClick={() => {
+                        setSelectedDomain(domain);
+                        setSelectedSubdomain('');
+                      }}
+                    >
+                      <span className="text-sm font-medium">{domain}</span>
+                      <ChevronRight className="w-4 h-4 shrink-0" />
+                    </button>
+                    {selectedDomain === domain && (
+                      <div className="bg-gray-50">
+                        {Array.from(subdomains).map((subdomain: string) => (
+                          <button
+                            key={subdomain}
+                            className={`w-full p-2 pl-6 text-left text-sm hover:bg-gray-100 ${
+                              selectedSubdomain === subdomain 
+                                ? 'bg-blue-50 text-blue-700' 
+                                : 'text-gray-600'
+                            }`}
+                            onClick={() => setSelectedSubdomain(subdomain)}
+                          >
+                            {subdomain}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ));
+              })()
+            ) : (
+              <p className="text-sm text-gray-500 p-3">No data loaded</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Indicators list section */}
+        <div className="flex-1">
+          {/* Single Active Filters Section */}
+          {(statusFilter !== 'all' || selectedSubdomain) && (
+            <div className="mb-4 flex flex-wrap items-center gap-4">
+              {statusFilter !== 'all' && (
+                <div className="flex items-center gap-2">
+                  <div className="text-sm text-gray-600">
+                    Status filter: 
+                    <span className="font-medium ml-1">
+                      {STATUS_FILTERS.find(f => f.value === statusFilter)?.label}
+                    </span>
+                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => setStatusFilter('all')}
+                  >
+                    Clear Status
+                  </Button>
+                </div>
+              )}
+
+              {selectedSubdomain && (
+                <div className="flex items-center gap-2">
+                  <div className="text-sm text-gray-600">
+                    Subdomain filter:
+                    <span className="font-medium ml-1">
+                      {selectedSubdomain}
+                    </span>
+                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => setSelectedSubdomain('')}
+                  >
+                    Clear Subdomain
+                  </Button>
+                </div>
+              )}
+
+              {statusFilter !== 'all' && selectedSubdomain && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => {
+                    setStatusFilter('all');
+                    setSelectedSubdomain('');
+                  }}
+                >
+                  Clear All Filters
+                </Button>
+              )}
+            </div>
+          )}
+
+          {/* Indicators List */}
+          {indicators.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              Please import data to view indicators
+            </div>
+          ) : (
+            <>
+              {/* Filter and display indicators */}
+              {indicators
+                .filter(i => {
+                  // First apply status filter
+                  if (statusFilter === 'all') {
+                    // If no status filter, require domain selection
+                    return selectedDomain ? i.domain === selectedDomain : true;
+                  }
+                  
+                  const activeFilter = STATUS_FILTERS.find(f => f.value === statusFilter);
+                  if (!activeFilter) return true;
+
+                  // Special handling for No Data cases
+                  if (UnitSystem.isNoData(i.current) || 
+                      UnitSystem.isNoData(i.baseline) || 
+                      UnitSystem.isNoData(i.target)) {
+                    return activeFilter.value === 'no-data';
+                  }
+                  
+                  // Handle baseline only case
+                  if (i.timeSeriesData.length <= 1) {
+                    return activeFilter.value === 'baseline-only';
+                  }
+
+                  return activeFilter.filterFn(i);
+                })
+                .filter(i => {
+                  // Then apply domain/subdomain filter if selected
+                  if (!selectedDomain) return true;
+                  if (!selectedSubdomain) return i.domain === selectedDomain;
+                  return i.domain === selectedDomain && i.subdomain === selectedSubdomain;
+                })
+                .map(indicator => (
+                  <IndicatorCard
+                    key={indicator.id}
+                    indicator={indicator}
+                    onClick={() => {
+                      setSelectedIndicator(indicator);
+                      setView('detail');
+                    }}
+                  />
+                ))}
+
+              {/* Show message if no indicators match filters */}
+              {indicators.filter(i => {
+                if (statusFilter === 'all') return selectedDomain ? i.domain === selectedDomain : true;
+                const activeFilter = STATUS_FILTERS.find(f => f.value === statusFilter);
+                return activeFilter?.filterFn(i) || false;
+              }).length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  {statusFilter !== 'all' 
+                    ? 'No indicators match the selected filters'
+                    : 'Select a domain to view indicators'}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  </div>
+);
+}
