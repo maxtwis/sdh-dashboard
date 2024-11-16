@@ -1986,14 +1986,12 @@ export default function SDHDashboard() {
 
           // Sort indicators by their ID
           const sortedData = processedData.sort((a, b) => {
-            // Extract numeric portion from ID (e.g., "ECON-01" -> "01")
             const aNum = parseInt(a.id.split('-')[1]);
             const bNum = parseInt(b.id.split('-')[1]);
             return aNum - bNum;
           });
 
           setIndicators(sortedData);
-          setSelectedDomain(sortedData[0].domain);
         }
       } catch (error) {
         console.error('Error loading indicators:', error);
@@ -2499,172 +2497,128 @@ export default function SDHDashboard() {
             </Card>
           ))}
         </div>
-        
-  
-      {/* Main content area */}
-<div className="flex gap-6">
-  {/* Domain navigation */}
-  <Card className="w-64">
-    <CardHeader>
-      <CardTitle>Domains & Subdomains</CardTitle>
-    </CardHeader>
-    <CardContent className="p-0">
-      {indicators.length > 0 ? (
-        (() => {
-          // Get unique domains and their subdomains
-          const domainMap = indicators.reduce<Record<string, Set<string>>>((acc, indicator) => {
-            if (!acc[indicator.domain]) {
-              acc[indicator.domain] = new Set();
-            }
-            acc[indicator.domain].add(indicator.subdomain);
-            return acc;
-          }, {});
-
-          return Object.entries(domainMap).map(([domain, subdomains]: [string, Set<string>]) => (
-            <div key={domain} className="border-b last:border-b-0">
-              <button
-                className={`flex items-center justify-between w-full p-3 text-left hover:bg-gray-100 ${
-                  selectedDomain === domain ? 'bg-blue-50 text-blue-700' : ''
-                }`}
-                onClick={() => {
-                  setSelectedDomain(domain);
-                  setSelectedSubdomain(''); // Clear subdomain when domain changes
-                }}
-              >
-                <span className="text-sm font-medium">{domain}</span>
-                <ChevronRight className="w-4 h-4 shrink-0" />
-              </button>
-              {selectedDomain === domain && (
-                <div className="bg-gray-50">
-                  {Array.from(subdomains).map((subdomain: string) => (
-                    <button
-                      key={subdomain}
-                      className={`w-full p-2 pl-6 text-left text-sm hover:bg-gray-100 ${
-                        selectedSubdomain === subdomain 
-                          ? 'bg-blue-50 text-blue-700' 
-                          : 'text-gray-600'
-                      }`}
-                      onClick={() => setSelectedSubdomain(subdomain)}
+    
+          {/* Main content area */}
+          <div className="flex-1">
+            {/* Single Active Filters Section */}
+            {(statusFilter !== 'all' || selectedSubdomain) && (
+              <div className="mb-4 flex flex-wrap items-center gap-4">
+                {statusFilter !== 'all' && (
+                  <div className="flex items-center gap-2">
+                    <div className="text-sm text-gray-600">
+                      Status filter: 
+                      <span className="font-medium ml-1">
+                        {STATUS_FILTERS.find(f => f.value === statusFilter)?.label}
+                      </span>
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => setStatusFilter('all')}
                     >
-                      {subdomain}
-                    </button>
+                      Clear Status
+                    </Button>
+                  </div>
+                )}
+
+                {selectedSubdomain && (
+                  <div className="flex items-center gap-2">
+                    <div className="text-sm text-gray-600">
+                      Subdomain filter:
+                      <span className="font-medium ml-1">
+                        {selectedSubdomain}
+                      </span>
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => setSelectedSubdomain('')}
+                    >
+                      Clear Subdomain
+                    </Button>
+                  </div>
+                )}
+
+                {statusFilter !== 'all' && selectedSubdomain && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      setStatusFilter('all');
+                      setSelectedSubdomain('');
+                    }}
+                  >
+                    Clear All Filters
+                  </Button>
+                )}
+              </div>
+            )}
+
+            {/* Indicators List */}
+            {indicators.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                Please import data to view indicators
+              </div>
+            ) : (
+              <>
+                {/* Filter and display indicators */}
+                {indicators
+                  .filter(i => {
+                    // First apply status filter
+                    if (statusFilter === 'all') {
+                      // If no status filter, require domain selection
+                      return selectedDomain ? i.domain === selectedDomain : true;
+                    }
+                    
+                    const activeFilter = STATUS_FILTERS.find(f => f.value === statusFilter);
+                    if (!activeFilter) return true;
+
+                    // Special handling for No Data cases
+                    if (UnitSystem.isNoData(i.current) || 
+                        UnitSystem.isNoData(i.baseline) || 
+                        UnitSystem.isNoData(i.target)) {
+                      return activeFilter.value === 'no-data';
+                    }
+                    
+                    // Handle baseline only case
+                    if (i.timeSeriesData.length <= 1) {
+                      return activeFilter.value === 'baseline-only';
+                    }
+
+                    return activeFilter.filterFn(i);
+                  })
+                  .filter(i => {
+                    // Then apply domain/subdomain filter if selected
+                    if (!selectedDomain) return true;
+                    if (!selectedSubdomain) return i.domain === selectedDomain;
+                    return i.domain === selectedDomain && i.subdomain === selectedSubdomain;
+                  })
+                  .map(indicator => (
+                    <IndicatorCard
+                      key={indicator.id}
+                      indicator={indicator}
+                      onClick={() => {
+                        setSelectedIndicator(indicator);
+                        setView('detail');
+                      }}
+                    />
                   ))}
-                </div>
-              )}
-            </div>
-          ));
-        })()
-      ) : (
-        <p className="text-sm text-gray-500 p-3">No data loaded</p>
-      )}
-    </CardContent>
-  </Card>
 
-  {/* Indicator cards */}
-  <div className="flex-1">
-    {selectedDomain && indicators.length > 0 ? (
-      <>
-      {/* Active Filters Display */}
-      {(statusFilter !== 'all' || selectedSubdomain) && (
-        <div className="mb-4 flex flex-wrap items-center gap-4">
-          {statusFilter !== 'all' && (
-            <div className="flex items-center gap-2">
-              <div className="text-sm text-gray-600">
-                Status filter: 
-                <span className="font-medium ml-1">
-                  {STATUS_FILTERS.find(f => f.value === statusFilter)?.label}
-                </span>
-              </div>
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={() => setStatusFilter('all')}
-              >
-                Clear Status
-              </Button>
-            </div>
-          )}
-
-          {selectedSubdomain && (
-            <div className="flex items-center gap-2">
-              <div className="text-sm text-gray-600">
-                Subdomain filter:
-                <span className="font-medium ml-1">
-                  {selectedSubdomain}
-                </span>
-              </div>
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={() => setSelectedSubdomain('')}
-              >
-                Clear Subdomain
-              </Button>
-            </div>
-          )}
-
-          {statusFilter !== 'all' && selectedSubdomain && (
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={clearAllFilters}
-            >
-              Clear All Filters
-            </Button>
-          )}
-        </div>
-      )}
-
-        {/* Indicators List */}
-        {indicators
-          .filter(i => {
-            // First apply status filter
-            if (statusFilter === 'all') return true;
-            
-            const activeFilter = STATUS_FILTERS.find(f => f.value === statusFilter);
-            if (!activeFilter) return true;
-
-            // Special handling for No Data cases
-            if (UnitSystem.isNoData(i.current) || 
-                UnitSystem.isNoData(i.baseline) || 
-                UnitSystem.isNoData(i.target)) {
-              return activeFilter.value === 'no-data';
-            }
-            
-            // Handle baseline only case
-            if (i.timeSeriesData.length <= 1) {
-              return activeFilter.value === 'baseline-only';
-            }
-
-            return activeFilter.filterFn(i);
-          })
-          .filter(i => {
-            // Then apply domain/subdomain filter if selected
-            if (!selectedDomain) return true;
-            if (!selectedSubdomain) return i.domain === selectedDomain;
-            return i.domain === selectedDomain && i.subdomain === selectedSubdomain;
-          })
-          .map(indicator => (
-            <IndicatorCard
-              key={indicator.id}
-              indicator={indicator}
-              onClick={() => {
-                setSelectedIndicator(indicator);
-                setView('detail');
-              }}
-            />
-          ))}
-      </>
-    ) : (
-      <div className="text-center py-8 text-gray-500">
-        {indicators.length === 0 ? 
-          'Please import data to view indicators' : 
-          'Select a domain to view indicators'
-        }
-      </div>
+                {/* Show message if no indicators match filters */}
+                {indicators.filter(i => {
+                  if (statusFilter === 'all') return selectedDomain ? i.domain === selectedDomain : true;
+                  const activeFilter = STATUS_FILTERS.find(f => f.value === statusFilter);
+                  return activeFilter?.filterFn(i) || false;
+                }).length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    {statusFilter !== 'all' 
+                      ? 'No indicators match the selected filters'
+                      : 'Select a domain to view indicators'}
+                  </div>
+                )}
+              </>
             )}
           </div>
-        </div>
       </div>
     </div>
   );
