@@ -21,6 +21,11 @@ import {
   Legend
 } from 'recharts';
 import { supabase } from '@/lib/supabase';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import { Map } from 'lucide-react';
+import MapView from '@/components/mapview';  // Adjust path based on your structure
+import bangkokGeojson from '@/data/bangkok-district.geojson';  // Adjust path based on your structure
 
 // Chart colors
 const colors = [
@@ -234,6 +239,8 @@ interface SummaryStats {
   baselineOnly: number;
 }
 
+type DetailView = 'chart' | 'table' | 'map';
+
 const ProgressSegment: React.FC<ProgressSegmentProps> = ({ progress, status, indicatorType }) => {
   const getProgressColors = () => {
     // Handle baseline only case first
@@ -338,7 +345,7 @@ const mergeIndicatorData = async (
   newIndicators: Indicator[],
   supabase: any
 ): Promise<Indicator[]> => {
-  // Fetch existing indicators from database
+  // Fetch existing data
   const { data: existingData, error } = await supabase
     .from('indicators')
     .select('*');
@@ -348,17 +355,16 @@ const mergeIndicatorData = async (
     throw error;
   }
 
-  // Convert existing data to a map for easy lookup
-  const existingIndicators = new Map<string, DatabaseIndicator>(
-    existingData.map((indicator: DatabaseIndicator) => [indicator.id, indicator])
+  // Convert existing data to Map using Object.fromEntries
+  const existingIndicators = Object.fromEntries(
+    (existingData || []).map((item: DatabaseIndicator) => [item.id, item])
   );
 
   // Merge new data with existing data
   return newIndicators.map(newIndicator => {
-    const existingIndicator = existingIndicators.get(newIndicator.id);
+    const existingIndicator = existingIndicators[newIndicator.id];
     
     if (!existingIndicator) {
-      // Ensure new indicator has all required fields
       return {
         ...newIndicator,
         description: newIndicator.description || '',
@@ -371,7 +377,6 @@ const mergeIndicatorData = async (
       };
     }
 
-    // Merge with existing data
     return {
       ...newIndicator,
       description: newIndicator.description || existingIndicator.description || '',
@@ -1928,7 +1933,7 @@ export default function SDHDashboard() {
   const [selectedSubdomain, setSelectedSubdomain] = useState<string>('');
   const [selectedIndicator, setSelectedIndicator] = useState<Indicator | null>(null);
   const [view, setView] = useState<'dashboard' | 'detail'>('dashboard');
-  const [detailView, setDetailView] = useState<'chart' | 'table'>('chart');
+  const [detailView, setDetailView] = useState<DetailView>('chart');
   const [fileName, setFileName] = useState<string>('');
   const [isAdmin, setIsAdmin] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -2308,48 +2313,63 @@ export default function SDHDashboard() {
                 <CardTitle>Data Viewer</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex justify-between items-center mb-6">
-                  <div className="flex gap-2">
-                    <Button
-                      variant={detailView === 'chart' ? 'default' : 'outline'}
-                      onClick={() => setDetailView('chart')}
-                      className="flex items-center gap-2"
-                    >
-                      <LineChart className="w-4 h-4" />
-                      Chart View
-                    </Button>
-                    <Button
-                      variant={detailView === 'table' ? 'default' : 'outline'}
-                      onClick={() => setDetailView('table')}
-                      className="flex items-center gap-2"
-                    >
-                      <Table className="w-4 h-4" />
-                      Table View
-                    </Button>
-                  </div>
+              <div className="flex justify-between items-center mb-6">
+                <div className="flex gap-2">
                   <Button
-                    variant="outline"
-                    onClick={() => handleDownloadCSV(selectedIndicator)}
+                    variant={detailView === 'chart' ? 'default' : 'outline'}
+                    onClick={() => setDetailView('chart')}
                     className="flex items-center gap-2"
                   >
-                    <Download className="w-4 h-4" />
-                    Download CSV
+                    <LineChart className="w-4 h-4" />
+                    Chart View
+                  </Button>
+                  <Button
+                    variant={detailView === 'table' ? 'default' : 'outline'}
+                    onClick={() => setDetailView('table')}
+                    className="flex items-center gap-2"
+                  >
+                    <Table className="w-4 h-4" />
+                    Table View
+                  </Button>
+                  <Button
+                    variant={detailView === 'map' ? 'default' : 'outline'}
+                    onClick={() => setDetailView('map')}
+                    className="flex items-center gap-2"
+                  >
+                    <Map className="w-4 h-4" />
+                    Map View
                   </Button>
                 </div>
+                <Button
+                  variant="outline"
+                  onClick={() => handleDownloadCSV(selectedIndicator)}
+                  className="flex items-center gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                  Download CSV
+                </Button>
+              </div>
 
-                {detailView === 'chart' ? (
+              {detailView === 'chart' ? (
                 <DataChart 
                   data={selectedIndicator.timeSeriesData}
                   disaggregationTypes={selectedIndicator.disaggregationTypes}
                   unit={selectedIndicator.unit}
                   indicatorId={selectedIndicator.id}
                 />
-              ) : (
+              ) : detailView === 'table' ? (
                 <DataTable 
                   data={selectedIndicator.timeSeriesData}
                   disaggregationTypes={selectedIndicator.disaggregationTypes}
                   unit={selectedIndicator.unit}
                   indicatorId={selectedIndicator.id}
+                />
+              ) : (
+                <MapView
+                  data={selectedIndicator.timeSeriesData}
+                  geojsonData={bangkokGeojson}
+                  indicatorId={selectedIndicator.id}
+                  unit={selectedIndicator.unit}
                 />
               )}
               </CardContent>
