@@ -23,7 +23,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import 'leaflet/dist/leaflet.css';
 import { Map } from 'lucide-react';
-import MapView from '@/components/MapView.tsx';  // Adjust path based on your structure
+import DynamicMapView from '@/components/DynamicMapView';
 import bangkokGeojson from '@/data/bangkok-district.geojson';  // Adjust path based on your structure
 
 // Chart colors
@@ -2364,7 +2364,7 @@ export default function SDHDashboard() {
                   indicatorId={selectedIndicator.id}
                 />
               ) : (
-                <MapView
+                <DynamicMapView
                   data={selectedIndicator.timeSeriesData}
                   geojsonData={bangkokGeojson}
                   indicatorId={selectedIndicator.id}
