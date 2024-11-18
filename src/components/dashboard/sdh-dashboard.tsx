@@ -1,7 +1,5 @@
 "use client";
-declare module "*.geojson" {
-  const value: any;
-}
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -23,7 +21,6 @@ import {
   Legend
 } from 'recharts';
 import { supabase } from '@/lib/supabase';
-import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Map } from 'lucide-react';
 import MapView from '@/components/MapView.tsx';  // Adjust path based on your structure
