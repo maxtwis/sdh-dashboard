@@ -24,7 +24,7 @@ import { supabase } from '@/lib/supabase';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Map } from 'lucide-react';
-import MapView from '@/components/mapview';  // Adjust path based on your structure
+import MapView from '@/components/MapView.tsx';  // Adjust path based on your structure
 import bangkokGeojson from '@/data/bangkok-district.geojson';  // Adjust path based on your structure
 
 // Chart colors
