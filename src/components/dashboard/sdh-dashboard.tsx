@@ -1,5 +1,7 @@
 "use client";
-
+declare module "*.geojson" {
+  const value: any;
+}
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
