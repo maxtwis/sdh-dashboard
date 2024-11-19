@@ -819,25 +819,26 @@ const processCSVData = (data: any[]): Indicator[] => {
         }
       }
             // Add this after processing disaggregation data:
-      if (row['district_code'] && row['district_name'] && row['value']) {
-        if (!timeSeriesPoint.district_data) {
-          timeSeriesPoint.district_data = [];
-        }
-        
-        const existingDistrict = timeSeriesPoint.district_data.find(
-          d => d.district_code === row['district_code']
-        );
-
-        if (!existingDistrict) {
-          timeSeriesPoint.district_data.push({
-            district_code: row['district_code'],
-            district_name: row['district_name'],
-            value: parseFloat(row['value'])
-          });
-        }
-      }
-    }
-  });
+            if (row['district_code'] && row['district_name'] && row['value']) {
+              if (!timeSeriesPoint.district_data) {
+                timeSeriesPoint.district_data = [];
+              }
+              
+              const districtCode = row['district_code'].toString().padStart(4, '0'); // Ensure 4-digit format
+              const existingDistrict = timeSeriesPoint.district_data.find(
+                d => d.district_code === districtCode
+              );
+            
+              if (!existingDistrict) {
+                timeSeriesPoint.district_data.push({
+                  district_code: districtCode,
+                  district_name: row['district_name'],
+                  value: parseFloat(row['value'])
+                });
+              }
+            }
+          }
+        });
 
   // Post-processing: Sort time series data and validate
   Object.values(processedData).forEach(indicator => {

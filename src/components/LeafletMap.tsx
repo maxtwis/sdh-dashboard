@@ -132,42 +132,47 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
     // Create GeoJSON layer
     geoJsonLayerRef.current = L.geoJSON(geojsonData, {
       style: (feature) => {
-        const district = districtData.find(d => d.district_code === feature?.properties.dcode);
-        console.log('Feature:', feature?.properties.dcode, 'District:', district);
-        return {
-          fillColor: district ? getColor(district.value) : '#ffffff',
-          weight: 1,
-          opacity: 1,
-          color: '#666',
-          fillOpacity: 0.7
-        };
-      },
-      onEachFeature: (feature, layer) => {
-        const district = districtData.find(d => d.district_code === feature.properties.dcode);
+    // Convert dcode to string for comparison since CSV likely has string codes
+    const districtCode = feature?.properties?.dcode?.toString();
+    const district = districtData.find(d => d.district_code === districtCode);
+    console.log('Feature dcode:', districtCode, 'District found:', district); // Debug log
+
+    return {
+        fillColor: district ? getColor(district.value) : '#ffffff',
+        weight: 1,
+        opacity: 1,
+        color: '#666',
+        fillOpacity: 0.7
+    };
+    },
+    onEachFeature: (feature, layer) => {
+        // Convert dcode to string here as well
+        const districtCode = feature.properties.dcode?.toString();
+        const district = districtData.find(d => d.district_code === districtCode);
         if (district) {
-          layer.bindPopup(`
-            <div class="p-2">
-              <strong>${district.district_name}</strong><br>
-              Value: ${district.value?.toFixed(2)} ${unit}
-            </div>
-          `);
-          
-          layer.on({
-            mouseover: (e) => {
-              const layer = e.target;
-              layer.setStyle({
-                weight: 3,
-                color: '#333',
-                fillOpacity: 0.9
-              });
-              layer.bringToFront();
-            },
-            mouseout: (e) => {
-              geoJsonLayerRef.current?.resetStyle(e.target);
-            }
-          });
+            layer.bindPopup(`
+              <div class="p-2">
+                <strong>${feature.properties.DISTRICT_N}</strong><br>
+                Value: ${district.value?.toFixed(2)} ${unit}
+              </div>
+            `);
+            
+            layer.on({
+              mouseover: (e) => {
+                const layer = e.target;
+                layer.setStyle({
+                  weight: 3,
+                  color: '#333',
+                  fillOpacity: 0.9
+                });
+                layer.bringToFront();
+              },
+              mouseout: (e) => {
+                geoJsonLayerRef.current?.resetStyle(e.target);
+              }
+            });
+          }
         }
-      }
     }).addTo(map);
 
     // Add legend to map
