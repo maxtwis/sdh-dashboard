@@ -16,19 +16,37 @@ const LeafletMap = dynamic(
   }
 );
 
+interface DistrictDataPoint {
+  district_code: string;
+  district_name: string;
+  value: number;
+}
+
+interface DisaggregationData {
+  category: string;
+  value: string;
+  percentage: number;
+}
+
+interface TimeSeriesDataPoint {
+  year: string;
+  total: number;
+  disaggregation: DisaggregationData[];
+  district_data?: DistrictDataPoint[];
+}
+
+interface LeafletControlOptions extends L.ControlOptions {
+  position: L.ControlPosition;
+}
+
+// Update MapViewProps to match the new data structure
 interface MapViewProps {
-  data: {
-    year: string;
-    total: number;
-    district_code?: string;
-    district_name?: string;
-    value?: number;
-    disaggregation: any[];
-  }[];
+  data: TimeSeriesDataPoint[];
   geojsonData: any;
   indicatorId: string;
   unit: string;
 }
+
 
 const MapView: React.FC<MapViewProps> = (props) => {
   const [selectedYear, setSelectedYear] = useState<string>('');

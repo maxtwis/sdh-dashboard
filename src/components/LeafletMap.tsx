@@ -5,19 +5,43 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
 interface LeafletMapProps {
-  data: {
-    year: string;
-    total: number;
-    district_code?: string;
-    district_name?: string;
-    value?: number;
-    disaggregation: any[];
-  }[];
+  data: TimeSeriesDataPoint[];
   geojsonData: any;
   indicatorId: string;
   unit: string;
   selectedYear: string;
 }
+
+interface DistrictDataPoint {
+    district_code: string;
+    district_name: string;
+    value: number;
+  }
+  
+  interface DisaggregationData {
+    category: string;
+    value: string;
+    percentage: number;
+  }
+  
+  interface TimeSeriesDataPoint {
+    year: string;
+    total: number;
+    disaggregation: DisaggregationData[];
+    district_data?: DistrictDataPoint[];
+  }
+  
+  interface LeafletControlOptions extends L.ControlOptions {
+    position: L.ControlPosition;
+  }
+  
+  // Update MapViewProps to match the new data structure
+  interface MapViewProps {
+    data: TimeSeriesDataPoint[];
+    geojsonData: any;
+    indicatorId: string;
+    unit: string;
+  }
 
 const LeafletMap: React.FC<LeafletMapProps> = ({ 
   data, 
@@ -29,47 +53,23 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!containerRef.current) return;
-
-    // Fix leaflet icon paths
-    delete (L.Icon.Default.prototype as any)._getIconUrl;
-    L.Icon.Default.mergeOptions({
-      iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-      iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-    });
-
-    if (!mapRef.current) {
-      mapRef.current = L.map(containerRef.current).setView([13.7563, 100.5018], 11);
-      
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors'
-      }).addTo(mapRef.current);
-    }
-
-    return () => {
-      if (mapRef.current) {
-        mapRef.current.remove();
-        mapRef.current = null;
-      }
-    };
-  }, []);
-
-  useEffect(() => {
     if (!mapRef.current || !geojsonData || !data || !selectedYear) return;
-
+  
     const map = mapRef.current;
-
+  
     // Clear existing layers
     map.eachLayer((layer) => {
       if (layer instanceof L.GeoJSON) {
         map.removeLayer(layer);
       }
     });
-
-    const yearData = data.filter(d => d.year === selectedYear);
-    const districtData = yearData.filter(d => d.district_code && d.value !== undefined);
-
+  
+    // Find the data for selected year
+    const yearData = data.find(d => d.year === selectedYear);
+    
+    // Get district data from the year's data point
+    const districtData = yearData?.district_data || [];
+  
     if (districtData.length === 0) {
       const noDataDiv = L.DomUtil.create('div', 'no-data-message');
       noDataDiv.innerHTML = `<div class="bg-white p-2 rounded shadow">No district data available for ${selectedYear}</div>`;
@@ -84,21 +84,21 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
       new noDataControl().addTo(map);
       return;
     }
-
-    const values = districtData.map(d => d.value!);
+  
+    const values = districtData.map(d => d.value);
     const min = Math.min(...values);
     const max = Math.max(...values);
-
+  
     const getColor = (value: number) => {
       const normalized = (value - min) / (max - min);
       return `rgb(${255 * (1 - normalized)}, ${255 * (1 - normalized)}, 255)`;
     };
-
+  
     const geoJsonLayer = L.geoJSON(geojsonData, {
       style: (feature) => {
         const district = districtData.find(d => d.district_code === feature?.properties.dcode);
         return {
-          fillColor: district ? getColor(district.value!) : '#ffffff',
+          fillColor: district ? getColor(district.value) : '#ffffff',
           weight: 1,
           opacity: 1,
           color: '#666',
@@ -117,11 +117,11 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
         }
       }
     }).addTo(map);
-
+  
     if (geoJsonLayer.getBounds().isValid()) {
       map.fitBounds(geoJsonLayer.getBounds());
     }
-
+  
   }, [data, geojsonData, selectedYear, unit]);
 
   return <div ref={containerRef} style={{ width: '100%', height: '100%' }} />;
