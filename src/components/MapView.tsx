@@ -3,7 +3,6 @@
 import React, { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 
-// Create a dynamic import for Leaflet with no SSR
 const LeafletMap = dynamic(
   () => import('./LeafletMap'),
   { 
@@ -16,49 +15,37 @@ const LeafletMap = dynamic(
   }
 );
 
-interface DistrictDataPoint {
-  district_code: string;
-  district_name: string;
-  value: number;
-}
-
-interface DisaggregationData {
-  category: string;
-  value: string;
-  percentage: number;
-}
-
-interface TimeSeriesDataPoint {
-  year: string;
-  total: number;
-  disaggregation: DisaggregationData[];
-  district_data?: DistrictDataPoint[];
-}
-
-interface LeafletControlOptions extends L.ControlOptions {
-  position: L.ControlPosition;
-}
-
-// Update MapViewProps to match the new data structure
 interface MapViewProps {
-  data: TimeSeriesDataPoint[];
+  data: {
+    year: string;
+    total: number;
+    disaggregation: any[];
+    district_data?: {
+      district_code: string;
+      district_name: string;
+      value: number;
+    }[];
+  }[];
   geojsonData: any;
   indicatorId: string;
   unit: string;
 }
 
-
-const MapView: React.FC<MapViewProps> = (props) => {
+const MapView: React.FC<MapViewProps> = ({ data, geojsonData, indicatorId, unit }) => {
   const [selectedYear, setSelectedYear] = useState<string>('');
   const [yearOptions, setYearOptions] = useState<string[]>([]);
 
   useEffect(() => {
-    if (props.data) {
-      const years = Array.from(new Set(props.data.map(d => d.year))).sort();
+    if (data) {
+      const years = Array.from(new Set(data.map(d => d.year))).sort();
       setYearOptions(years);
       setSelectedYear(years[years.length - 1]);
     }
-  }, [props.data]);
+  }, [data]);
+
+  if (!selectedYear) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <div className="space-y-4">
@@ -76,8 +63,11 @@ const MapView: React.FC<MapViewProps> = (props) => {
       </div>
       <div className="w-full h-[600px] relative border rounded">
         <LeafletMap
-          {...props}
+          data={data}
+          geojsonData={geojsonData}
           selectedYear={selectedYear}
+          unit={unit}
+          indicatorId={indicatorId}
         />
       </div>
     </div>

@@ -24,7 +24,7 @@ import { supabase } from '@/lib/supabase';
 import 'leaflet/dist/leaflet.css';
 import { Map } from 'lucide-react';
 import DynamicMapView from '@/components/DynamicMapView';
-import bangkokGeojson from '@/data/bangkok-district.geojson';  // Adjust path based on your structure
+import bangkokGeojson from '@/data/bangkok-district.geojson'; 
 
 // Chart colors
 const colors = [
@@ -792,25 +792,9 @@ const processCSVData = (data: any[]): Indicator[] => {
           year: row['Year'],
           total: timeSeriesTotal,
           disaggregation: [],
-          district_data: [] // Add this new array for district data
+          district_data: []
         };
         processedData[id].timeSeriesData.push(timeSeriesPoint);
-      }
-
-      // Add district data processing after the disaggregation processing
-      if (row['district_code'] && row['district_name'] && row['value'] !== undefined) {
-        // Check if this district already exists for this time point
-        const existingDistrict = timeSeriesPoint.district_data?.find(
-          d => d.district_code === row['district_code']
-        );
-
-        if (!existingDistrict && timeSeriesPoint.district_data) {
-          timeSeriesPoint.district_data.push({
-            district_code: row['district_code'],
-            district_name: row['district_name'],
-            value: parseFloat(row['value'])
-          });
-        }
       }
 
       // Process disaggregation data
@@ -832,6 +816,24 @@ const processCSVData = (data: any[]): Indicator[] => {
               percentage
             });
           }
+        }
+      }
+            // Add this after processing disaggregation data:
+      if (row['district_code'] && row['district_name'] && row['value']) {
+        if (!timeSeriesPoint.district_data) {
+          timeSeriesPoint.district_data = [];
+        }
+        
+        const existingDistrict = timeSeriesPoint.district_data.find(
+          d => d.district_code === row['district_code']
+        );
+
+        if (!existingDistrict) {
+          timeSeriesPoint.district_data.push({
+            district_code: row['district_code'],
+            district_name: row['district_name'],
+            value: parseFloat(row['value'])
+          });
         }
       }
     }
