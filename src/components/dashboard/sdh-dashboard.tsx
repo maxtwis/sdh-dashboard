@@ -23,7 +23,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import 'leaflet/dist/leaflet.css';
 import { Map } from 'lucide-react';
-import DynamicMapView from '@/components/DynamicMapView';
+import MapView from '@/components/MapView.tsx';  // Adjust path based on your structure
 import bangkokGeojson from '@/data/bangkok-district.geojson';  // Adjust path based on your structure
 
 // Chart colors
@@ -236,6 +236,28 @@ interface SummaryStats {
   littleChange: number;
   noData: number;
   baselineOnly: number;
+}
+
+interface DisaggregationData {
+  category: string;
+  value: string;
+  percentage: number;
+}
+
+interface TimeSeriesDataPoint {
+  year: string;
+  total: number;
+  disaggregation: DisaggregationData[];
+  district_code?: string;  // Added
+  district_name?: string;  // Added
+  value?: number;         // Added
+}
+
+interface MapViewProps {
+  data: TimeSeriesDataPoint[];
+  geojsonData: any;
+  indicatorId: string;
+  unit: string;
 }
 
 type DetailView = 'chart' | 'table' | 'map';
@@ -786,10 +808,21 @@ const processCSVData = (data: any[]): Indicator[] => {
         timeSeriesPoint = {
           year: row['Year'],
           total: timeSeriesTotal,
-          disaggregation: []
+          disaggregation: [],
+          district_code: row['district_code'],
+          district_name: row['district_name'],
+          value: row['value'] ? parseFloat(row['value']) : undefined
         };
         processedData[id].timeSeriesData.push(timeSeriesPoint);
+      } else {
+        
+      // Update district data if it exists
+      if (row['district_code'] && row['value']) {
+        timeSeriesPoint.district_code = row['district_code'];
+        timeSeriesPoint.district_name = row['district_name'];
+        timeSeriesPoint.value = parseFloat(row['value']);
       }
+    }  
 
       // Process disaggregation data
       if (row['Disaggregation Category'] && 
@@ -2364,7 +2397,7 @@ export default function SDHDashboard() {
                   indicatorId={selectedIndicator.id}
                 />
               ) : (
-                <DynamicMapView
+                <MapView
                   data={selectedIndicator.timeSeriesData}
                   geojsonData={bangkokGeojson}
                   indicatorId={selectedIndicator.id}
