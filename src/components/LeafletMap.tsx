@@ -30,6 +30,7 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
   const mapRef = useRef<L.Map | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const geoJsonLayerRef = useRef<L.GeoJSON | null>(null);
+  const legendRef = useRef<L.Control | null>(null);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -63,32 +64,76 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
 
     const map = mapRef.current;
 
-    // Remove existing GeoJSON layer if it exists
+    // Remove existing GeoJSON layer and legend
     if (geoJsonLayerRef.current) {
       map.removeLayer(geoJsonLayerRef.current);
+    }
+    if (legendRef.current) {
+      map.removeControl(legendRef.current);
     }
 
     // Find the data for selected year
     const yearData = data.find(d => d.year === selectedYear);
+    console.log('Year data:', yearData);
+
     const districtData = yearData?.district_data || [];
+    console.log('District data:', districtData);
 
     if (districtData.length === 0) {
       console.log('No district data available for', selectedYear);
       return;
     }
 
+    // Calculate color intervals
     const values = districtData.map(d => d.value);
     const min = Math.min(...values);
     const max = Math.max(...values);
+    const range = max - min;
+    const intervals = 5;
+    const step = range / intervals;
 
+    // Color function using intervals
     const getColor = (value: number) => {
-      const normalized = (value - min) / (max - min);
-      return `rgb(${255 * (1 - normalized)}, ${255 * (1 - normalized)}, 255)`;
+      if (isNaN(value)) return '#ffffff';
+      const normalizedValue = (value - min) / range;
+      if (normalizedValue <= 0.2) return '#fee5d9';
+      if (normalizedValue <= 0.4) return '#fcae91';
+      if (normalizedValue <= 0.6) return '#fb6a4a';
+      if (normalizedValue <= 0.8) return '#de2d26';
+      return '#a50f15';
     };
 
+    // Create legend
+    const legend = new L.Control({ position: 'bottomright' });
+    legendRef.current = legend;
+
+    legend.onAdd = () => {
+      const div = L.DomUtil.create('div', 'info legend');
+      div.style.backgroundColor = 'white';
+      div.style.padding = '6px 8px';
+      div.style.border = '1px solid #ccc';
+      div.style.borderRadius = '4px';
+      
+      // Add legend title
+      div.innerHTML = '<strong>Value Range</strong><br>';
+      
+      // Add legend items
+      for (let i = 0; i < intervals; i++) {
+        const from = min + (step * i);
+        const to = min + (step * (i + 1));
+        div.innerHTML += 
+          `<i style="background:${getColor(from + (step/2))}; display: inline-block; width: 18px; height: 18px; margin-right: 8px; opacity: 0.7"></i>` +
+          `${from.toFixed(1)}${i === intervals - 1 ? '+' : '–' + to.toFixed(1)} ${unit}<br>`;
+      }
+      
+      return div;
+    };
+
+    // Create GeoJSON layer
     geoJsonLayerRef.current = L.geoJSON(geojsonData, {
       style: (feature) => {
         const district = districtData.find(d => d.district_code === feature?.properties.dcode);
+        console.log('Feature:', feature?.properties.dcode, 'District:', district);
         return {
           fillColor: district ? getColor(district.value) : '#ffffff',
           weight: 1,
@@ -106,9 +151,27 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
               Value: ${district.value?.toFixed(2)} ${unit}
             </div>
           `);
+          
+          layer.on({
+            mouseover: (e) => {
+              const layer = e.target;
+              layer.setStyle({
+                weight: 3,
+                color: '#333',
+                fillOpacity: 0.9
+              });
+              layer.bringToFront();
+            },
+            mouseout: (e) => {
+              geoJsonLayerRef.current?.resetStyle(e.target);
+            }
+          });
         }
       }
     }).addTo(map);
+
+    // Add legend to map
+    legend.addTo(map);
 
     if (geoJsonLayerRef.current.getBounds().isValid()) {
       map.fitBounds(geoJsonLayerRef.current.getBounds());
