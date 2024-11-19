@@ -2136,32 +2136,45 @@ export default function SDHDashboard() {
         const mergedIndicators = await mergeIndicatorData(newIndicators, supabase);
   
         // Format data for Supabase
-        const supabaseData = mergedIndicators.map(indicator => ({
-          id: indicator.id,
-          domain: indicator.domain,
-          subdomain: indicator.subdomain,
-          title: indicator.title,
-          description: indicator.description,
-          unit: indicator.unit,
-          indicator_type: indicator.indicatorType,
-          target: indicator.target,
-          baseline: indicator.baseline,
-          current: indicator.current,
-          current_year: indicator.currentYear,
-          warning: indicator.warning || '',
-          status: indicator.status,
-          time_series_data: indicator.timeSeriesData,
-          disaggregation_types: indicator.disaggregationTypes,
-          details: indicator.details
-        }));
+        const supabaseData = mergedIndicators.map(indicator => {
+          // Process time series data to include district data
+          const timeSeriesData = indicator.timeSeriesData.map(point => ({
+            year: point.year,
+            total: point.total,
+            disaggregation: point.disaggregation,
+            district_data: point.district_data || []
+          }));
+        
+          return {
+            id: indicator.id,
+            domain: indicator.domain,
+            subdomain: indicator.subdomain,
+            title: indicator.title,
+            description: indicator.description,
+            unit: indicator.unit,
+            indicator_type: indicator.indicatorType,
+            target: indicator.target,
+            baseline: indicator.baseline,
+            current: indicator.current,
+            current_year: indicator.currentYear,
+            warning: indicator.warning || '',
+            status: indicator.status,
+            time_series_data: timeSeriesData,
+            disaggregation_types: indicator.disaggregationTypes,
+            details: indicator.details
+          };
+        });
   
         // Insert data in smaller batches
         const BATCH_SIZE = 50;
         for (let i = 0; i < supabaseData.length; i += BATCH_SIZE) {
           const batch = supabaseData.slice(i, i + BATCH_SIZE);
           const { error } = await supabase
-            .from('indicators')
-            .upsert(batch, { onConflict: 'id' });
+          .from('indicators')
+          .upsert(supabaseData, { 
+            onConflict: 'id',
+            defaultToNull: false 
+          });
   
           if (error) {
             console.error('Supabase error:', error);
