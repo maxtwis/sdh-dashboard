@@ -2483,24 +2483,47 @@ return (
   <div className="min-h-screen bg-gray-50">
     {/* Blue header */}
     <div className="bg-blue-900 text-white px-4 py-3 flex items-center justify-between">
-      <div className="flex items-center space-x-4">
-        <div className="h-8 w-8 bg-white rounded flex items-center justify-center">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-[#1A56DB]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    <div className="flex items-center space-x-4">
+    {/* Logo and Title Section */}
+    <div className="flex items-center space-x-3">
+      {view === 'dashboard' || view === 'detail' ? (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setView('home')}
+          className="text-white hover:bg-blue-700"
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back Home
+        </Button>
+      ) : null}
+      <div className="flex items-center">
+        <div className="bg-white p-2 rounded-lg">
+          <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            className="h-6 w-6 text-[#1A56DB]" 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            stroke="currentColor" 
+            strokeWidth="2"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
           </svg>
         </div>
-        <h1 className="text-xl font-semibold">Social Determinants of Health Equity (SDHE) Dashboard</h1>
-      </div>
-      <div>
-        <Button
-          variant="outline"
-          onClick={() => setIsAdmin(!isAdmin)}
-          className={`bg-white text-[#1A56DB] hover:bg-blue-50 border-none ${isAdmin ? 'bg-blue-50' : ''}`}
-        >
-          {isAdmin ? 'Admin Mode' : 'View Mode'}
-        </Button>
+        <h1 className="text-xl font-semibold ml-3">Social Determinants of Health Equity (SDHE) Dashboard</h1>
       </div>
     </div>
+  </div>
+  <div>
+    <Button
+      variant="outline"
+      onClick={() => setIsAdmin(!isAdmin)}
+      className={`bg-white text-[#1A56DB] hover:bg-blue-50 border-none ${isAdmin ? 'bg-blue-50' : ''}`}
+    >
+      {isAdmin ? 'Admin Mode' : 'View Mode'}
+    </Button>
+  </div>
+</div>
 
     <div className="p-6 pt-8">
       {/* Admin import section */}
