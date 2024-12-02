@@ -25,6 +25,7 @@ import 'leaflet/dist/leaflet.css';
 import { Map } from 'lucide-react';
 import DynamicMapView from '@/components/DynamicMapView';
 import bangkokGeojson from '@/data/bangkok-district.geojson'; 
+import SDHHomepage from './sdh-homepage';
 
 // Chart colors
 const colors = [
@@ -1956,7 +1957,7 @@ export default function SDHDashboard() {
   const [selectedDomain, setSelectedDomain] = useState<string>('');
   const [selectedSubdomain, setSelectedSubdomain] = useState<string>('');
   const [selectedIndicator, setSelectedIndicator] = useState<Indicator | null>(null);
-  const [view, setView] = useState<'dashboard' | 'detail'>('dashboard');
+  const [view, setView] = useState<'home' | 'dashboard' | 'detail'>('home');
   const [detailView, setDetailView] = useState<DetailView>('chart');
   const [fileName, setFileName] = useState<string>('');
   const [isAdmin, setIsAdmin] = useState(false);
@@ -2276,6 +2277,10 @@ export default function SDHDashboard() {
       setIsLoading(false);
     }
   };
+
+  if (view === 'home') {
+    return <SDHHomepage onNavigateToDashboard={() => setView('dashboard')} />;
+  }
 
   // Detail view rendering
   if (view === 'detail' && selectedIndicator) {
