@@ -2482,7 +2482,7 @@ export default function SDHDashboard() {
 return (
   <div className="min-h-screen bg-gray-50">
     {/* Blue header */}
-    <div className="bg-[#1A56DB] text-white px-4 py-3 flex items-center justify-between">
+    <div className="bg-blue-900 text-white px-4 py-3 flex items-center justify-between">
       <div className="flex items-center space-x-4">
         <div className="h-8 w-8 bg-white rounded flex items-center justify-center">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-[#1A56DB]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
