@@ -1,7 +1,7 @@
 'use client';
 
 import { ErrorBoundary } from 'react-error-boundary';
-import { ErrorFallback } from '@/components/ErrorBoundary/index'
+import ErrorFallback from '@/components/ErrorBoundary';  // Remove the /index and change to default import
 import SDHDashboard from '@/components/dashboard/sdh-dashboard';
 
 export default function SDHDashboardWrapper() {
